@@ -1,14 +1,7 @@
 README.md
 setup.py
-habitat_representation/__init__.py
-habitat_representation/habitat_models.py
-habitat_representation/nets.py
-habitat_representation/offline.py
-habitat_representation/utils.py
 nav2d_representation/__init__.py
 nav2d_representation/autoencoder.py
-nav2d_representation/bc.py
-nav2d_representation/dqn_her.py
 nav2d_representation/gen_model_nets.py
 nav2d_representation/gen_nets.py
 nav2d_representation/info_nce.py

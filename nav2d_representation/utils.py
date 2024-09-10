@@ -3,13 +3,13 @@ import numpy as np
 from matplotlib import cm
 import matplotlib.pyplot as plt
 #from nav2d_representation.pointmass.d4rl_maze2d import VisualMazeEnv
-from nav2d_representation.nav2d.nav2d import Navigate2D
-from nav2d_representation.nav2d.nav2d_po import Navigate2DPO
+from environments.nav2d.nav2d import Navigate2D
+# from nav2d_representation.nav2d.nav2d_po import Navigate2DPO
 
 ENV_DICT = {
     "pointmass": 0,#VisualMazeEnv,
     "nav2d": Navigate2D,
-    "nav2dpo": Navigate2DPO,
+    # "nav2dpo": Navigate2DPO,
 }
 
 

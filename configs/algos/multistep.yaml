@@ -1,0 +1,8 @@
+multistep:
+  tau: 0.005
+  sync_freq: 1
+  gamma: 0.75
+  lr: 0.0001
+  resume_path: null
+  k_step_forward_weight: 0.0
+  gamma_schedule: false

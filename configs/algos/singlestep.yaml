@@ -1,0 +1,8 @@
+singlestep:
+  forward_weight: 0.8
+  l1_penalty: 0.0
+  lr: 0.0001
+  resume_path: ''
+  control_type: "inverse_dynamics"
+  train_stop_epochs: 1000000
+  train_warmup_epochs: 0

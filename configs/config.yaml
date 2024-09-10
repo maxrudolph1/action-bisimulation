@@ -1,0 +1,4 @@
+logdir: 'results'
+dataset: ''
+wandb: True
+seed: 0 
