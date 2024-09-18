@@ -6,8 +6,8 @@ from multiprocessing import Pool, RLock
 import h5py
 import os
 
-from nav2d_representation.nav2d.nav2d import Navigate2D
-from nav2d_representation.nav2d.nav2d_po import Navigate2DPO
+from environments.nav2d.nav2d import Navigate2D
+# from nav2d_representation.nav2d.nav2d_po import Navigate2DPO
 # import gymnasium as gym
 # import nav2d
 
@@ -80,7 +80,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num-workers", default=32, type=int)
-    parser.add_argument("--size", type=int, default=1000000)
+    parser.add_argument("--size", type=int, default=10000)
     parser.add_argument("--epsilon", type=float, default=0.5)
     parser.add_argument("--num-obstacles", type=int, default=10)
     parser.add_argument("--obstacle-size", type=int, default=1)

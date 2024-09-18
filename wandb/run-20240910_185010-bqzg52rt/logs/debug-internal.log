@@ -1,0 +1,5 @@
+2024-09-10 18:50:10,703 INFO    StreamThr :1882981 [internal.py:wandb_internal():85] W&B internal server running at pid: 1882981, started at: 2024-09-10 18:50:10.702156
+2024-09-10 18:50:10,705 DEBUG   HandlerThread:1882981 [handler.py:handle_request():158] handle_request: status
+2024-09-10 18:50:10,931 DEBUG   HandlerThread:1882981 [handler.py:handle_request():158] handle_request: shutdown
+2024-09-10 18:50:10,931 INFO    HandlerThread:1882981 [handler.py:finish():884] shutting down handler
+2024-09-10 18:50:11,709 INFO    SenderThread:1882981 [sender.py:finish():1631] shutting down sender

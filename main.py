@@ -23,45 +23,57 @@ import random
 from nav2d_representation.utils import ENV_DICT
 from environments.nav2d.utils import perturb_heatmap
 import datetime
+from nav2d_representation.models import SingleStep, MultiStep
 
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
-def load_dataset(cfg: DictConfig):
-    dataset = h5py.File(cfg.dataset, "r")
+MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep}
+
+def load_dataset(dataset_path):
+    dataset = h5py.File(dataset_path, "r")
     dataset_keys = []
     dataset.visit(lambda key: dataset_keys.append(key) if isinstance(dataset[key], h5py.Dataset) else None)
-    return dataset, dataset_keys
+    
+    mem_dataset = {}
+    for key in dataset_keys:
+        mem_dataset[key] = dataset[key][:]
+    dataset = mem_dataset
+    
+    act_shape = 7
+    obs_shape = dataset["obs"][0].shape
+    return dataset, dataset_keys, obs_shape, act_shape
 
-def create_models(cfg: DictConfig, env):
-    print('asdf')
-    import pdb; pdb.set_trace()
+def create_models(cfg: DictConfig):
+    model_names = list(cfg.keys())
+    models = {}
+    for model_name in model_names:
+        model_cfg = cfg[model_name]
+        model = MODEL_DICT[model_cfg.model](**model_cfg.attrs)
+        models[model_name] = model
     
 def create_env(cfg: DictConfig):
     env = ENV_DICT[cfg.environment](**cfg.environment.attrs)
     return env
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
-def my_app(cfg: DictConfig):
+def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
         
     if cfg.wandb: 
         import wandb
-        wandb.init(project="nav2d", config=cfg)
+        wandb.init(entity='maxrudolph', project="nav2d", config=cfg)
         
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
     
-    dataset = load_dataset(cfg.dataset)
-    
-    env = create_env(cfg.environment)
-    
-    models = create_models(cfg.algos, env)
+    dataset, dataset_keys, obs_shape, act_shape = load_dataset(cfg.dataset)
+    models = create_models(cfg.algos)
 
 
 if __name__ == "__main__":
-    my_app()
+    main()
     
 def train(args):
 
@@ -77,65 +89,6 @@ def train(args):
         obs_shape = (obs_shape[0] * obs_shape[1], obs_shape[2], obs_shape[3])
     print("Observation shape: ", obs_shape)
     print("Action dim: ", action_dim)
-    if args.single_step_resume_path:
-        ss_model = torch.load(args.single_step_resume_path).cuda()   
-    else:
-        if args.single_step_type == "inverse_dynamics": 
-            ss_model = SingleStep(
-                obs_shape,
-                action_dim,
-                learning_rate=args.single_step_lr,
-                forward_model_weight=args.single_step_forward_weight,
-                l1_penalty=args.single_step_l1_penalty,
-                weight_decay=args.single_step_weight_decay,
-                args=args,
-            ).cuda()
-        elif args.single_step_type == "infoNCE":
-            ss_model = KNCEStep(
-                obs_shape,
-                action_dim,
-                learning_rate=args.single_step_lr,
-                forward_model_weight=args.single_step_forward_weight,
-                inverse_model_weight=args.single_step_inverse_weight,
-                l1_penalty=args.single_step_l1_penalty,
-                weight_decay=args.single_step_weight_decay,
-                num_steps = args.k_steps,
-                num_negative = args.single_step_NCE_negative,
-                args=args,
-            ).cuda()
-            
-    if args.train_obs_forward_model:
-        obs_forward_model = ForwardModel(obs_shape=obs_shape, action_dim=4, args=args).cuda()
-    elif args.use_learned_obs_forward_model:
-        obs_forward_model = torch.load(args.learned_obs_forward_model_path).cuda()
-        
-    if args.multi_step_resume_path:
-        ms_model = torch.load(args.multi_step_resume_path).cuda()
-    else:
-        ms_model = MultiStep(
-            obs_shape=obs_shape,
-            action_dim=action_dim,
-            ss_encoder=ss_model.encoder,
-            ss_inverse_model=ss_model.inverse_model,
-            learning_rate=args.multi_step_lr,
-            gamma=args.multi_step_gamma,
-            tau=args.multi_step_tau,
-            sync_freq=args.multi_step_sync_freq,
-            weight_decay=args.multi_step_weight_decay,
-            k_steps=args.k_steps,
-            effective_gamma=args.effective_gamma,
-            multi_step_forward_loss = args.multi_step_forward_loss,
-            k_step_forward_weight=args.k_step_forward_weight,
-            k_steps_dyn=args.k_steps_dyn,
-            use_gt_forward_model=args.use_gt_forward_model,
-            learned_obs_forward_model=obs_forward_model.forward_model if args.use_learned_obs_forward_model else None,
-            args=args,
-        ).cuda()
-    
-    mem_dataset = {}
-    for key in dataset_keys:
-        mem_dataset[key] = dataset[key][:]
-    dataset = mem_dataset
     
     global_step = 0
     

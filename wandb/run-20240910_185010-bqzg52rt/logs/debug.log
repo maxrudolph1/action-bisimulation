@@ -1,0 +1,43 @@
+2024-09-10 18:50:10,697 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Current SDK version is 0.17.9
+2024-09-10 18:50:10,697 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Configure stats pid to 1882868
+2024-09-10 18:50:10,697 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Loading settings from /u/mrudolph/.config/wandb/settings
+2024-09-10 18:50:10,697 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Loading settings from /scratch/cluster/mrudolph/documents/action-bisimulation/wandb/settings
+2024-09-10 18:50:10,697 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Loading settings from environment variables: {'api_key': '***REDACTED***'}
+2024-09-10 18:50:10,698 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Applying setup settings: {'_disable_service': False}
+2024-09-10 18:50:10,698 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Inferring run settings from compute environment: {'program_relpath': 'main.py', 'program_abspath': '/scratch/cluster/mrudolph/documents/action-bisimulation/main.py', 'program': '/scratch/cluster/mrudolph/documents/action-bisimulation/main.py'}
+2024-09-10 18:50:10,698 INFO    MainThread:1882868 [wandb_setup.py:_flush():77] Applying login settings: {}
+2024-09-10 18:50:10,698 INFO    MainThread:1882868 [wandb_init.py:_log_setup():524] Logging user logs to /scratch/cluster/mrudolph/documents/action-bisimulation/wandb/run-20240910_185010-bqzg52rt/logs/debug.log
+2024-09-10 18:50:10,698 INFO    MainThread:1882868 [wandb_init.py:_log_setup():525] Logging internal logs to /scratch/cluster/mrudolph/documents/action-bisimulation/wandb/run-20240910_185010-bqzg52rt/logs/debug-internal.log
+2024-09-10 18:50:10,698 INFO    MainThread:1882868 [wandb_init.py:init():608] calling init triggers
+2024-09-10 18:50:10,699 INFO    MainThread:1882868 [wandb_init.py:init():615] wandb.init called with sweep_config: {}
+config: {'_metadata': ContainerMetadata(ref_type=typing.Any, object_type=<class 'dict'>, optional=True, key=None, flags={'struct': True}, flags_root=False, resolver_cache=defaultdict(<class 'dict'>, {'now': {('%Y-%m-%d',): '2024-09-10', ('%H-%M-%S',): '18-50-07'}}), key_type=typing.Any, element_type=typing.Any), '_parent': None, '_flags_cache': {'struct': True}, '_content': {'logdir': 'results', 'dataset': '', 'wandb': True, 'seed': 0}}
+2024-09-10 18:50:10,699 INFO    MainThread:1882868 [wandb_init.py:init():658] starting backend
+2024-09-10 18:50:10,699 INFO    MainThread:1882868 [wandb_init.py:init():662] setting up manager
+2024-09-10 18:50:10,700 INFO    MainThread:1882868 [backend.py:_multiprocessing_setup():105] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2024-09-10 18:50:10,704 INFO    MainThread:1882868 [wandb_init.py:init():670] backend started and connected
+2024-09-10 18:50:10,706 ERROR   MainThread:1882868 [wandb_init.py:init():1239] error in wandb.init()
+Traceback (most recent call last):
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/sdk/wandb_init.py", line 1229, in init
+    return wi.init()
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/sdk/wandb_init.py", line 675, in init
+    run = Run(
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/sdk/wandb_run.py", line 602, in __init__
+    self._init(
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/sdk/wandb_run.py", line 720, in _init
+    self._config._update(config, ignore_locked=True)
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/sdk/wandb_config.py", line 180, in _update
+    sanitized = self._sanitize_dict(
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/sdk/wandb_config.py", line 267, in _sanitize_dict
+    k, v = self._sanitize(k, v, allow_val_change)
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/sdk/wandb_config.py", line 285, in _sanitize
+    val = json_friendly_val(val)
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/site-packages/wandb/util.py", line 674, in json_friendly_val
+    converted = asdict(val)
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/dataclasses.py", line 1075, in asdict
+    return _asdict_inner(obj, dict_factory)
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/dataclasses.py", line 1082, in _asdict_inner
+    value = _asdict_inner(getattr(obj, f.name), dict_factory)
+  File "/u/mrudolph/miniconda3/envs/actibisim/lib/python3.9/dataclasses.py", line 1112, in _asdict_inner
+    return type(obj)((_asdict_inner(k, dict_factory),
+TypeError: first argument must be callable or None
+2024-09-10 18:50:11,932 WARNING MsgRouterThr:1882868 [router.py:message_loop():77] message_loop has been closed

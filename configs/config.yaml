@@ -1,4 +1,8 @@
 logdir: 'results'
-dataset: ''
-wandb: True
+dataset: '/u/mrudolph/documents/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size10000__k_steps_0.hdf5'
+wandb: False
 seed: 0 
+# algos: multistep
+
+defaults:
+  - algos: singlestep
