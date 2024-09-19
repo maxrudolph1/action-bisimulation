@@ -6,8 +6,8 @@ import torch.nn.functional as F
 import torch.nn as nn
 import time
 import numpy as np
-from . import utils
-from . import gen_model_nets
+from representations import utils
+from models import gen_model_nets
 
 
 
@@ -18,8 +18,6 @@ class StochasticEncoder(torch.nn.Module):
         super().__init__()
         self.encoder = Encoder(obs_dim)
         assert self.encoder.output_dim % 2 == 0
-        # self.fc_mu = torch.nn.Linear(self.encoder.output_dim, latent_dim)
-        # self.fc_log_var = torch.nn.Linear(self.encoder.output_dim, latent_dim)
         self.output_dim = self.encoder.output_dim // 2
 
     def forward(self, x):

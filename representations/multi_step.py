@@ -4,8 +4,8 @@ import numpy as np
 import torch.nn
 from matplotlib import cm
 
-from . import nets
-from . import gen_model_nets
+from models import nets
+from models import gen_model_nets
 import torch.nn.functional as F
 import torch
 

@@ -6,3 +6,6 @@ multistep:
   resume_path: null
   k_step_forward_weight: 0.0
   gamma_schedule: false
+
+defaults:
+  - networks: cnn

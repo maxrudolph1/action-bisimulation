@@ -1,8 +1,10 @@
-singlestep:
+single_step:
   forward_weight: 0.8
   l1_penalty: 0.0
-  lr: 0.0001
+  learning_rate: 0.0001
+  weight_decay: 0.0
   resume_path: ''
-  control_type: "inverse_dynamics"
+  control_type: inverse_dynamics
   train_stop_epochs: 1000000
   train_warmup_epochs: 0
+  use_gen_nets: True

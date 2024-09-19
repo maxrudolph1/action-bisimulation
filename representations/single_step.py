@@ -4,53 +4,40 @@ import numpy as np
 import torch.nn
 from matplotlib import cm
 
-from . import nets
-from . import gen_model_nets
+from models import gen_model_nets
 import torch.nn.functional as F
 import torch
 
 from . import utils
 
+NETWORKS_DICT = {'cnn': gen_model_nets.GenEncoder, 'mlp': gen_model_nets.GenForwardDynamics, }
 
 class SingleStep(torch.nn.Module):
     def __init__(
-        self, obs_shape, action_dim, learning_rate, forward_model_weight, args, l1_penalty,weight_decay=1e-5
+        self, obs_shape, act_shape, encoder_cfg, forward_cfg, inverse_cfg, learning_rate=0.01, forward_weight=0.01, l1_penalty=0.0, weight_decay=1e-5, **kwargs,
     ):
         super().__init__()
+        encoder_type = list(encoder_cfg.keys())[0]
+        forward_type = list(forward_cfg.keys())[0]
+        inverse_type = list(inverse_cfg.keys())[0]
 
-        if args.use_gen_nets:
-            self.encoder = gen_model_nets.GenEncoder(obs_shape,
-                                                  hidden_layers=args.encode_hidden_layers,
-                                                  num_pooling=args.encode_num_pooling,
-                                                  acti=args.encode_activation,
-                                                  use_layer_norm=args.encode_layer_norm).cuda()
-            self.embed_dim = self.encoder.output_dim
-            self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, action_dim,
-                                                                hidden_layers=args.post_hidden_layers,
-                                                                acti=args.post_activation,
-                                                                use_layer_norm=args.post_layer_norm).cuda()
-            self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, action_dim,
-                                                                hidden_layers=args.post_hidden_layers,
-                                                                acti=args.post_activation,
-                                                                use_layer_norm=args.post_layer_norm).cuda()
-        else:
-            self.encoder = nets.Encoder(obs_shape).cuda()
-            self.embed_dim = self.encoder.output_dim
-            self.forward_model = nets.ForwardDynamics(self.embed_dim, action_dim).cuda()
-            self.inverse_model = nets.InverseDynamics(self.embed_dim, action_dim).cuda()
+        self.encoder = gen_model_nets.GenEncoder(obs_shape, **encoder_cfg[encoder_type]).cuda()
+        self.embed_dim = self.encoder.output_dim
+        self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape,**forward_cfg[forward_type]).cuda()
+        self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape,**inverse_cfg[inverse_type]).cuda()
+
         self.optimizer = torch.optim.Adam(
             list(self.encoder.parameters())
             + list(self.forward_model.parameters())
             + list(self.inverse_model.parameters()),
             lr=learning_rate,
-            # weight_decay=h["weight_decay"],
             weight_decay=weight_decay,
         )
 
-        self.forward_model_weight = forward_model_weight
+        self.forward_model_weight = forward_weight
         self.l1_penalty = l1_penalty
 
-    def train_step(self, batch):
+    def train_step(self, batch, epoch):
         obs = torch.as_tensor(batch["obs"], device="cuda")
         act = torch.as_tensor(batch["action"], device="cuda")
         obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
@@ -88,9 +75,6 @@ class SingleStep(torch.nn.Module):
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
-
-        
-        
 
         ret = {
             "inverse": inverse_model_loss.detach().item(),

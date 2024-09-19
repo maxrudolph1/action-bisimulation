@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 import time
 import numpy as np
-from . import gen_nets
+from models import gen_nets
 
 class GenEncoder(torch.nn.Module):
     def __init__(self, obs_dim, normalized=False, **kwargs):

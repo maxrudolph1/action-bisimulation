@@ -1,0 +1,4 @@
+mlp:
+  post_hidden_layers: 2
+  post_activation: relu
+  post_layer_norm: False

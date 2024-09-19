@@ -1,0 +1,5 @@
+cnn:
+  encode_hidden_layers: 3
+  num_pooling: 2
+  acti: relu
+  use_layer_norm: False
