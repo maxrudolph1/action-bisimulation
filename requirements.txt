@@ -1,0 +1,9 @@
+gym==0.26.2
+h5py==3.11.0
+hydra-core
+matplotlib
+numpy
+pyyaml
+torch==2.4.1
+tqdm
+wandb
