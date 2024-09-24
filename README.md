@@ -1,17 +1,19 @@
-## File Structure
-- 
+## Introduction
+This repo contains the code to run the
+
 ## Install Instructions:
 
-cd action-bisimulation/
+	# navigate to folder
+	cd action-bisimulation/
 
-# create conda environment
-conda create -n actbisim python=3.9
+	# create conda environment
+	conda create -n actbisim python=3.9
 
-# install dependencies listed in requirements.txt
-pip install -r requirements.txt
+	# install dependencies listed in requirements.txt
+	pip install -r requirements.txt
 
-# install our code base in editale mode
-pip install -e .
+	# install our code base in editale mode
+	pip install -e .
 
 
 <!-- - conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia

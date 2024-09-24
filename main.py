@@ -42,8 +42,8 @@ def load_dataset(dataset_path):
         mem_dataset[key] = dataset[key][:]
     dataset = mem_dataset
     
-    act_shape = 7
     obs_shape = dataset["obs"][0].shape
+    act_shape = dataset["action"].max() + 1
     return dataset, obs_shape, act_shape
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):

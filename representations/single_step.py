@@ -10,7 +10,6 @@ import torch
 
 from . import utils
 
-NETWORKS_DICT = {'cnn': gen_model_nets.GenEncoder, 'mlp': gen_model_nets.GenForwardDynamics, }
 
 class SingleStep(torch.nn.Module):
     def __init__(
