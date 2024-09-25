@@ -10,17 +10,13 @@ import tqdm
 from matplotlib import cm
 import torch
 import numpy as np
-# from nav2d_representation import utils
-
-# from nav2d_representation.models import *
-# from nav2d_representation.info_nce import KNCEStep
+import wandb
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
 import torch.nn.functional as F
 import random
-# from representations.utils import ENV_DICT
 from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.single_step import SingleStep
@@ -57,7 +53,9 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
         models[model_name] = model
     return models
         
-def share_dependant_models(models):
+def initialize_dependant_models(models):
+    for model_name, model in models.items():
+        model.share_dependant_models(models)
     return models
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
@@ -65,21 +63,23 @@ def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
         
     if cfg.wandb: 
-        import wandb
-        wandb.init(entity='maxrudolph', project="nav2d", config=cfg)
+        wandb.init(entity='maxrudolph', project="nav2d", config={})
         
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
     
     dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
     models = create_models(cfg, obs_shape, act_shape)
-    share_dependant_models(models)
+    models = initialize_dependant_models(models)
     
     train(cfg, dataset, models)
     
     
 def train(cfg: DictConfig, dataset, models):
     dataset_keys = list(dataset.keys())
+    wandb_logs = {key: {} for key in models.keys()}
+    train_step = 0
+    
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
         sample_ind_next = np.random.permutation(len(dataset["obs"]))
@@ -91,7 +91,15 @@ def train(cfg: DictConfig, dataset, models):
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
             
             for model_name, model in models.items():
-                model.train_step(samples, epoch)
+                log = model.train_step(samples, epoch)
+                wandb_logs[model_name].update(log)
+                
+            if cfg.wandb:
+                labeled_logs = {f"{algo_name}/{key}": value for algo_name, algo_log in wandb_logs.items() for key, value in algo_log.items()}
+                wandb.log(labeled_logs, step=train_step)
+            train_step += 1            
+                
+            
 
 if __name__=="__main__":
     main()

@@ -1,0 +1,9 @@
+multi_step:
+  tau: 0.005
+  sync_freq: 1
+  gamma: 0.75
+  learning_rate: 0.0001
+  resume_path: null
+
+# defaults:
+#   - /networks@encoder: cnn

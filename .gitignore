@@ -1,3 +1,4 @@
 **/*.hdf5
 **/*.pyc
 outputs/
+wandb/
