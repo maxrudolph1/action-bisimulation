@@ -36,11 +36,14 @@ class SingleStep(torch.nn.Module):
         self.forward_model_weight = forward_weight
         self.l1_penalty = l1_penalty
         self.dynamic_l1_penalty = kwargs.get("dynamic_l1_penalty", False)
+        self.train_stop_epochs = kwargs.get("train_stop_epochs", 1e6)
 
     def share_dependant_models(self, models):
         pass
     
     def train_step(self, batch, epoch):
+        if epoch >= self.train_stop_epochs:
+            return {}
         obs = torch.as_tensor(batch["obs"], device="cuda")
         act = torch.as_tensor(batch["action"], device="cuda")
         obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
@@ -55,8 +58,6 @@ class SingleStep(torch.nn.Module):
         else:
             forward_model_loss = 0
             
-        
-
         if self.l1_penalty > 0:
             l1_loss = (
                 torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean()
@@ -93,14 +94,13 @@ class SingleStep(torch.nn.Module):
         total_loss.backward()
         self.optimizer.step()
 
+
         ret = {
             "inverse_loss": inverse_model_loss.detach().item(),
             "l1_loss": l1_loss.detach().item(),
             "loss": total_loss.detach().item(),
             "accuracy": accuracy.detach().item(),
             "cur_l1_pentaly": cur_l1_pentaly,
-            "representation_norm": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
         }
-
-        
+        self.last_ret = ret
         return ret

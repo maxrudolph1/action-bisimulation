@@ -58,6 +58,16 @@ def initialize_dependant_models(models):
         model.share_dependant_models(models)
     return models
 
+def log_to_wandb(cfg, models, logs, samples, train_step):
+    if train_step % cfg.met_log_freq == 0:
+        labeled_logs = {f"{algo_name}/{key}": value for algo_name, algo_log in logs.items() for key, value in algo_log.items()}
+        wandb.log(labeled_logs, step=train_step)
+    if train_step % cfg.img_log_freq == 0:
+        for model_name, model in models.items():
+            obs = samples["obs"][0]
+            img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
+            wandb.log({f"{model_name}/heatmap": img}, step=train_step)
+
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
@@ -89,15 +99,16 @@ def train(cfg: DictConfig, dataset, models):
             end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
             sample_ind = np.sort(sample_ind_all[start:end])
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
-            
             for model_name, model in models.items():
                 log = model.train_step(samples, epoch)
                 wandb_logs[model_name].update(log)
                 
             if cfg.wandb:
-                labeled_logs = {f"{algo_name}/{key}": value for algo_name, algo_log in wandb_logs.items() for key, value in algo_log.items()}
-                wandb.log(labeled_logs, step=train_step)
+                log_to_wandb(cfg, models, wandb_logs, samples, train_step)
+                
             train_step += 1            
+            
+
                 
             
 

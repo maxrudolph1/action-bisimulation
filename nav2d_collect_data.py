@@ -14,13 +14,11 @@ from environments.nav2d.nav2d import Navigate2D
 
 def collect(num, idx, seed, epsilon, num_obstacles, args):
 
-    if args.env == "nav2d":
-        env = Navigate2D(num_obstacles, grid_size=args.grid_size, 
-                                    static_goal=not args.random_goal,
-                                    obstacle_diameter=args.obstacle_size,
-                                    env_config=args.env_config)
-    elif args.env == "nav2dpo":
-        env = Navigate2DPO(num_obstacles, static_goal=(not args.random_goal), env_config=args.env_config)
+    env = Navigate2D(num_obstacles, grid_size=args.grid_size, 
+                                static_goal=not args.random_goal,
+                                obstacle_diameter=args.obstacle_size,
+                                env_config=args.env_config)
+
 
     env.seed(seed + idx)
     np.random.seed(seed + idx)

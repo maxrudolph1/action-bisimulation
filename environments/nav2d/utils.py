@@ -62,29 +62,11 @@ def perturb_heatmap(obs, encoder):
         .repeat(2, axis=1)
         .repeat(2, axis=2)
     )
-    # norm_distances = np.abs(
-    #     np.sum(encoded**2, axis=-1) - np.sum(encoded_perturbed**2, axis=-1)
-    # ).reshape(h, w)
-    # norm_distances /= np.max(norm_distances)
-    # ang_distances = np.arccos(np.clip(
-    #     (encoded * encoded_perturbed).sum(axis=-1)
-    #     / (np.linalg.norm(encoded, axis=-1) * np.linalg.norm(encoded_perturbed, axis=-1)),
-    #     -1,
-    #     1,
-    # )).reshape(h, w)
-    # ang_distances /= np.pi
-    # norm_heatmap = cm.gray(norm_distances)[:, :, :3] \
-    #     .transpose([2, 0, 1]) \
-    #     .repeat(2, axis=1).repeat(2, axis=2)
-    # ang_heatmap = cm.gray(ang_distances)[:, :, :3] \
-    #     .transpose([2, 0, 1]) \
-    #     .repeat(2, axis=1).repeat(2, axis=2)
 
     img = render(obs)
     img = img.repeat(2, axis=1).repeat(2, axis=2)
     img[:, :, -1] = [[0], [1], [0]]
     heatmap[:, :, 0] = [[0], [1], [0]]
-    # norm_heatmap[:, :, -1] = [[0], [1], [0]]
-    # ang_heatmap[:, :, 0] = [[0], [1], [0]]
+
 
     return img, heatmap

@@ -64,6 +64,7 @@ class MultiStep(torch.nn.Module):
         )
 
         self.target_encoder = deepcopy(self.encoder).cuda()
+        self.ss_train_warmup_epochs = kwargs.get("ss_train_warmup_epochs", 0)   
 
 
     # def batch_forward_model(self, obs, act):
@@ -82,7 +83,9 @@ class MultiStep(torch.nn.Module):
     def share_dependant_models(self, models):
         self.ss_encoder = models.get("single_step").encoder
         
-    def train_step(self, batch, ss_average=None):
+    def train_step(self, batch, epoch):
+        if epoch < self.ss_train_warmup_epochs:
+            return {}
         
         obs_x = torch.as_tensor(batch["obs"], device="cuda")  # observation ( x )
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
@@ -218,13 +221,10 @@ class MultiStep(torch.nn.Module):
         target_ms_distance_size = target_distances.float().mean().detach().item() 
         cur_ms_distance_size = distances.float().mean().detach().item()
             
-        ss_multiplier = 1 - self.gamma 
-        self.ss_running_average = ss_average if ss_average is not None else 1
 
-        ss_distances = ss_distances /  self.ss_running_average  # normalize by running average
         
         ms_loss = F.smooth_l1_loss(
-            distances, ss_multiplier * ss_distances.detach() + self.gamma * target_distances.detach()
+            distances, (1 - self.gamma) * ss_distances.detach() + self.gamma * target_distances.detach()
         )
         
         
@@ -239,16 +239,14 @@ class MultiStep(torch.nn.Module):
             self.steps_until_sync -= 1
 
         
-        ms_loss_logs = {
+        log = {
             "total_loss": ms_loss.detach().item(),
             "base_case_distance": ss_distances.float().mean().detach().item(),
-            "weighted_ss_distance": ss_multiplier * ss_distances.float().mean().detach().item(),
             "cur_ms_distance": cur_ms_distance_size,
             "forward_pred_ms_distance": target_ms_distance_size,
             "gamma": self.gamma,
-            "ss_multiplier": ss_multiplier,
         }
-        return {"ms": ms_loss_logs} #, "forward": forward_loss_logs if not self.use_gt_forward_model else {}}
+        return log
 
         
     def _sync_params(self):

@@ -2,11 +2,13 @@ logdir: 'results'
 dataset: '/u/mrudolph/documents/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_0.hdf5'
 wandb: False
 seed: 0 
-n_epochs: 50
+n_epochs: 10
 batch_size: 256
+met_log_freq: 10
+img_log_freq: 1000
 
 defaults:
-  - algos: singlestep
+  - algos: single_step
   - /networks@encoder: cnn
   - /networks@forward: mlp
   - /networks@inverse: mlp
