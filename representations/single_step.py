@@ -34,13 +34,17 @@ class SingleStep(torch.nn.Module):
         )
 
         self.forward_model_weight = forward_weight
-        self.l1_penalty = l1_penalty
+        self.l1_penalty = l1_penalty # regularization single step parameter
         self.dynamic_l1_penalty = kwargs.get("dynamic_l1_penalty", False)
+        # self.dynamic_l1_penalty = False
+        self.train_stop_epochs = kwargs.get("train_stop_epochs", 1e6)
 
     def share_dependant_models(self, models):
         pass
-    
+
     def train_step(self, batch, epoch):
+        if epoch >= self.train_stop_epochs:
+            return {}
         obs = torch.as_tensor(batch["obs"], device="cuda")
         act = torch.as_tensor(batch["action"], device="cuda")
         obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
@@ -54,8 +58,6 @@ class SingleStep(torch.nn.Module):
             )
         else:
             forward_model_loss = 0
-            
-        
 
         if self.l1_penalty > 0:
             l1_loss = (
@@ -70,37 +72,36 @@ class SingleStep(torch.nn.Module):
             inverse_model_pred,
             act,
         )
-        
+
         accuracy =  torch.mean(
                 (torch.argmax(inverse_model_pred, dim=1) == act).float()
             )
-        
+
         if self.dynamic_l1_penalty:
             gain = 1
-            cur_l1_pentaly = self.l1_penalty * (1 - np.exp(- accuracy.detach().item() * gain))
+            cur_l1_penalty = self.l1_penalty * (1 - np.exp(- accuracy.detach().item() * gain))
         else:
-            cur_l1_pentaly = self.l1_penalty
+            cur_l1_penalty = self.l1_penalty
 
-        l1_loss = cur_l1_pentaly * l1_loss
+        l1_loss = cur_l1_penalty * l1_loss
         forward_model_loss = self.forward_model_weight * forward_model_loss
         total_loss = (
             forward_model_loss
             + l1_loss
             + inverse_model_loss
         )
-        
+
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
 
-        ret = {
-            "inverse_loss": inverse_model_loss.detach().item(),
-            "l1_loss": l1_loss.detach().item(),
-            "loss": total_loss.detach().item(),
-            "accuracy": accuracy.detach().item(),
-            "cur_l1_pentaly": cur_l1_pentaly,
-            "representation_norm": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
-        }
 
-        
+        ret = {
+            "inverse_loss": inverse_model_loss.detach().item(), # loss of inverse dynamics model
+            "l1_loss": l1_loss.detach().item(),                 # regularization loss
+            "loss": total_loss.detach().item(),                 # total loss
+            "accuracy": accuracy.detach().item(),               # accuracy of predicting discrete actions
+            "cur_l1_penalty": cur_l1_penalty,                   # beta in the regularization part of ss model
+        }
+        self.last_ret = ret
         return ret

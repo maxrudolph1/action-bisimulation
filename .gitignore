@@ -1,4 +1,6 @@
+**/.DS_Store
 **/*.hdf5
+**/*.pt
 **/*.pyc
 outputs/
 wandb/

@@ -5,7 +5,6 @@ single_step:
   weight_decay: 0.0
   resume_path: ''
   control_type: inverse_dynamics
-  train_stop_epochs: 1000000
-  train_warmup_epochs: 0
+  train_stop_epochs: 1
   use_gen_nets: True
   dynamic_l1_penalty: True
