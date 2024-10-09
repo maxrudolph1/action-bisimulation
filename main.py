@@ -21,6 +21,7 @@ from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
+import os
 
 
 from omegaconf import DictConfig, OmegaConf
@@ -65,6 +66,8 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
     if train_step % cfg.img_log_freq == 0:
         for model_name, model in models.items():
             obs = samples["obs"][0]
+            obs[1, :, :] = -1
+            obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
             img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
             wandb.log({f"{model_name}/heatmap": img}, step=train_step)
 
@@ -73,7 +76,7 @@ def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
         
     if cfg.wandb: 
-        wandb.init(entity='maxrudolph', project="nav2d", config={})
+        wandb.init(entity='maxrudolph', project="nav2d", config=OmegaConf.to_container(cfg),)
         
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -106,9 +109,13 @@ def train(cfg: DictConfig, dataset, models):
             if cfg.wandb:
                 log_to_wandb(cfg, models, wandb_logs, samples, train_step)
                 
-            train_step += 1            
+            train_step += 1        
             
-
+    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")    
+    logdir = os.path.join(cfg.logdir, time_str)
+    os.makedirs(logdir)
+    for model_name, model in models.items():
+        model.save(logdir + f"/{model_name}.pt")
                 
             
 

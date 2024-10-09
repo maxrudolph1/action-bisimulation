@@ -11,11 +11,20 @@ from models import gen_nets
 class GenEncoder(torch.nn.Module):
     def __init__(self, obs_dim, normalized=False, **kwargs):
         super().__init__()
-        self.encoder = gen_nets.GeneralConv2DEncoder(obs_dim, normalized=False, **kwargs)
-        self.output_dim = self.encoder.output_dim
+        self.cnn_encoder = gen_nets.GeneralConv2DEncoder(obs_dim, normalized=False, **kwargs)
+        if 'output_dim' in kwargs:
+            self.use_output_layer = True
+            self.output_dim = kwargs['output_dim']
+            self.last_layer = nn.Sequential(nn.ReLU(), nn.Linear(self.cnn_encoder.output_dim, self.output_dim))
+        else:    
+            self.output_dim = self.encoder.output_dim
+            self.use_output_layer = False
         
     def forward(self, obs):
-        return self.encoder(obs)
+        z = self.cnn_encoder(obs)
+        if self.use_output_layer:
+            z = self.last_layer(z)
+        return z
 
 class GenInverseDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, **kwargs):

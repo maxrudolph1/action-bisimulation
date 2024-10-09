@@ -22,29 +22,36 @@ class MultiStep(torch.nn.Module):
         tau=0.95,
         sync_freq=1, 
         weight_decay=1e-5, 
-        multi_step_forward_loss="l2", 
+        multi_step_forward_loss="l1", 
         **kwargs,
     ):
         super().__init__()
         encoder_type = list(encoder_cfg.keys())[0]
         forward_type = list(forward_cfg.keys())[0]
-        inverse_type = list(inverse_cfg.keys())[0]
         
         self.obs_shape = obs_shape
         self.act_shape = act_shape
         self.gamma = gamma
         self.tau = tau
-        self.ss_encoder = ss_encoder
+        
+        if "base_case_path" in kwargs and kwargs["base_case_path"] is not None:
+            self.ss_encoder = torch.load(kwargs["base_case_path"])['encoder']
+        else:
+            self.ss_encoder = None
+                        
         self.multi_step_forward_loss = multi_step_forward_loss
         self.use_states_with_same_action = kwargs.get("use_states_with_same_action", False)
         self.steps_until_sync = 0
         self.sync_freq = sync_freq
         
 
-        self.encoder = gen_model_nets.GenEncoder(obs_shape, **encoder_cfg[encoder_type]).cuda()
+        if kwargs.get("warm_start_ms_with_ss"):
+            self.encoder = deepcopy(self.ss_encoder).cuda()
+        else:
+            self.encoder = gen_model_nets.GenEncoder(obs_shape, **encoder_cfg[encoder_type]).cuda() 
+            
         self.embed_dim = self.encoder.output_dim
         self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, **forward_cfg[forward_type]).cuda()
-        self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape, **inverse_cfg[inverse_type]).cuda()                
             
         self.encoder_optimizer = torch.optim.Adam(
             list(self.encoder.parameters()),
@@ -55,16 +62,12 @@ class MultiStep(torch.nn.Module):
         self.forward_model_optimizer = torch.optim.Adam(
             list(self.forward_model.parameters()),
             lr=learning_rate,
-            weight_decay= weight_decay,
-        )
-        
-        self.inverse_model_optimizer = torch.optim.Adam(
-            list(self.inverse_model.parameters()),
-            lr=learning_rate,
+            weight_decay=weight_decay,
         )
 
         self.target_encoder = deepcopy(self.encoder).cuda()
-        self.ss_train_warmup_epochs = kwargs.get("ss_train_warmup_epochs", 0)   
+        self.ss_train_warmup_epochs = kwargs.get("ss_train_warmup_epochs")   
+        self.forward_model_steps_per_batch = kwargs.get("forward_model_steps_per_batch")
 
 
     # def batch_forward_model(self, obs, act):
@@ -81,7 +84,9 @@ class MultiStep(torch.nn.Module):
     #     return next_obs
         
     def share_dependant_models(self, models):
-        self.ss_encoder = models.get("single_step").encoder
+        if self.ss_encoder is None:
+            self.ss_encoder = models.get("single_step").encoder
+            
         
     def train_step(self, batch, epoch):
         if epoch < self.ss_train_warmup_epochs:
@@ -118,8 +123,8 @@ class MultiStep(torch.nn.Module):
             obs_y = similar_action_obs
             obs_y_next = similar_action_obs_next
             
+            
         ox_encoded_online = self.encoder(obs_x)
-        
         oy_encoded_online = self.encoder(obs_y)
          
         with torch.no_grad():
@@ -130,35 +135,16 @@ class MultiStep(torch.nn.Module):
 
 
         # optimize latent forward model
-        if not self.use_states_with_same_action:
+        for _ in range(self.forward_model_steps_per_batch):
             self.forward_model_optimizer.zero_grad()
             latent_forward_prediction = self.forward_model(ox_encoded_target.detach(), act)
 
-            forward_model_next_loss = F.mse_loss(
-                latent_forward_prediction,
-                oxn_encoded_target.detach(),
-            ) if self.multi_step_forward_loss == "l2" else F.smooth_l1_loss(
+            forward_model_next_loss = F.smooth_l1_loss(
                 latent_forward_prediction,
                 oxn_encoded_target.detach(),
             )   
             forward_model_next_loss.backward()
             self.forward_model_optimizer.step()
-            
-            inverse_model_pred = self.inverse_model(ox_encoded_target, oxn_encoded_target)        
-            inverse_model_loss = F.cross_entropy(
-                inverse_model_pred,
-                act,
-            )
-            self.inverse_model_optimizer.zero_grad()
-            inverse_model_loss.backward()
-            self.inverse_model_optimizer.step()
-            
-            forward_loss_logs = {
-                "forward_loss": forward_model_next_loss.detach().item(),
-                "inverse_acc": (inverse_model_pred.argmax(dim=1) == act).float().mean().detach().item(),
-                "inverse_loss": inverse_model_loss.detach().item(),
-                # "inverse_acc_forward": (inverse_model_pred_forward_model_enc.argmax(dim=1) == act).float().mean().detach().item(),
-            }
 
         with torch.no_grad():
             ss_encoded_x = self.ss_encoder(obs_x)
@@ -166,35 +152,9 @@ class MultiStep(torch.nn.Module):
             ss_diffs = (ss_encoded_x - ss_encoded_y).detach()
             ss_distances = torch.linalg.norm(ss_diffs, ord=1, dim=-1)
 
-            # if self.use_gt_forward_model:
-            #     obs_x_expanded = obs_x.unsqueeze(1).expand(-1,self.act_shape, -1, -1, -1).reshape(bs * self.act_shape, *obs_x.shape[1:])
-            #     obs_y_expanded = obs_y.unsqueeze(1).expand(-1,self.act_shape, -1, -1, -1).reshape(bs * self.act_shape, *obs_x.shape[1:])
-      
-            #     all_actions = torch.arange(self.act_shape, device="cuda").unsqueeze(0).expand(obs_x.shape[0], -1).reshape(-1)
-
-            #     obs_x_next_true = self.batch_forward_model(obs_x_expanded, all_actions)
-            #     obs_y_next_true = self.batch_forward_model(obs_y_expanded, all_actions)
-                
-            #     pred_ox_encoded = self.encoder(obs_x_next_true).reshape(bs, self.act_shape, -1)
-            #     pred_oy_encoded = self.encoder(obs_y_next_true).reshape(bs, self.act_shape, -1)
             if self.use_states_with_same_action:
                 pred_ox_encoded = self.encoder(obs_x_next).unsqueeze(1) 
                 pred_oy_encoded = self.encoder(obs_y_next).unsqueeze(1) 
-            # elif self.use_learned_obs_forward_model:
-            #     obs_x_expanded = obs_x.unsqueeze(1).expand(-1,self.act_shape, -1, -1, -1).reshape(bs * self.act_shape, *obs_x.shape[1:])
-            #     obs_y_expanded = obs_y.unsqueeze(1).expand(-1,self.act_shape, -1, -1, -1).reshape(bs * self.act_shape, *obs_x.shape[1:])
-            #     all_actions = torch.arange(self.act_shape, device="cuda").unsqueeze(0).expand(obs_x.shape[0], -1).reshape(-1)
-            #     pred_ox_next = self.forward_model(
-            #         obs_x_expanded,
-            #         all_actions,
-            #     )  # shape (n, 4, e)
-            #     pred_oy_next = self.forward_model(
-            #         obs_y_expanded,
-            #         all_actions,
-            #     )  # shape (n, 4, e)
-                
-            #     pred_ox_encoded = self.encoder(pred_ox_next).reshape(bs, self.act_shape, -1)
-            #     pred_oy_encoded = self.encoder(pred_oy_next).reshape(bs, self.act_shape, -1)
             else:
                 pred_ox_encoded = self.forward_model(
                     ox_encoded_target.unsqueeze(1).expand(-1, self.act_shape, -1),
@@ -227,7 +187,6 @@ class MultiStep(torch.nn.Module):
             distances, (1 - self.gamma) * ss_distances.detach() + self.gamma * target_distances.detach()
         )
         
-        
         self.encoder_optimizer.zero_grad()
         ms_loss.backward()
         self.encoder_optimizer.step()
@@ -243,8 +202,9 @@ class MultiStep(torch.nn.Module):
             "total_loss": ms_loss.detach().item(),
             "base_case_distance": ss_distances.float().mean().detach().item(),
             "cur_ms_distance": cur_ms_distance_size,
-            "forward_pred_ms_distance": target_ms_distance_size,
+            "forward_ms_distance": target_ms_distance_size,
             "gamma": self.gamma,
+            "forward_model_loss": forward_model_next_loss.detach().item(),
         }
         return log
 
@@ -254,3 +214,12 @@ class MultiStep(torch.nn.Module):
             self.encoder.parameters(), self.target_encoder.parameters()
         ):
             targ.data.copy_(targ.data * (1.0 - self.tau) + curr.data * self.tau)
+            
+    def save(self, path):
+        torch.save(
+            {
+                "encoder": self.encoder,
+                "forward_model": self.forward_model,
+            },
+            path,
+        )

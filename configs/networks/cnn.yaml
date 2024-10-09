@@ -3,3 +3,4 @@ cnn:
   num_pooling: 2
   acti: relu
   use_layer_norm: False
+  output_dim: 64
