@@ -22,12 +22,13 @@ from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
+from representations.ms_reconstruction import MultiStepReconstruction
 
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
-MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep}
+MODEL_DICT = { 'single_step': SingleStep, 'multi_step': MultiStep, 'ms_reconstruction': MultiStepReconstruction }
 
 def load_dataset(dataset_path):
     dataset = h5py.File(dataset_path, "r")
@@ -78,9 +79,6 @@ def save_heatmap (cfg: DictConfig, model_encoder, obs, save_file: str):
     plt.savefig(fig_path)
     plt.close()
 
-    # if (cfg.wandb):
-    #     wandb.log({f"perturbation_maps/{save_file}": wandb.Image(fig_path)})
-
 def log_to_wandb(cfg, models, logs, samples, train_step):
     if train_step % cfg.met_log_freq == 0:
         labeled_logs = {f"{algo_name}/{key}": value for algo_name, algo_log in logs.items() for key, value in algo_log.items()}
@@ -89,8 +87,33 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
     if train_step % cfg.img_log_freq == 0:
         for model_name, model in models.items():
             obs = samples["obs"][0]
-            img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
-            wandb.log({f"{model_name}/heatmap": img}, step=train_step)
+            if (model_name == 'ms_reconstruction'):
+                decoder = model.decoder_model
+                reconstructed_obs = (
+                        decoder(torch.as_tensor(obs, device="cuda").unsqueeze(0))
+                        .squeeze(0)
+                        .detach()
+                        .cpu()
+                        .numpy()
+                )
+
+                fig, axs = plt.subplots(3, 2, figsize=(6, 9))  # 3 rows, 2 columns
+                for i in range(3):
+                    # orignal obs on left
+                    axs[i, 0].imshow(obs[i], cmap='gray')
+                    axs[i, 0].set_title(f"Original Layer {i + 1}")
+                    axs[i, 0].axis('off')
+
+                    # reconstructed obs on right
+                    axs[i, 1].imshow(reconstructed_obs[i], cmap='gray')
+                    axs[i, 1].set_title(f"Reconstructed Layer {i + 1}")
+                    axs[i, 1].axis('off')
+
+                wandb.log({f"{model_name}/reconstruction": wandb.Image(fig)}, step=train_step)
+                plt.close(fig)
+            else:
+                img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
+                wandb.log({f"{model_name}/heatmap": img}, step=train_step)
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
@@ -103,22 +126,47 @@ def main(cfg: DictConfig):
     torch.manual_seed(cfg.seed)
 
     dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
-    models = create_models(cfg, obs_shape, act_shape, single_step_path='/home/ekuo/Github/action-bisim-repos/action-bisimulation-UNCOMMITTED-MINE/model_saves/single_step_polished_night_41.pt')
+    if (cfg.save_ss):
+        models = create_models(cfg, obs_shape, act_shape)
+        models = initialize_dependant_models(models)
 
-    models = initialize_dependant_models(models)
+        train(cfg, dataset, models, train_ss=True)
 
-    # train(cfg, dataset, models) # should only train singlestep
-    train(cfg, dataset, models, train_multi_step=True)
+        torch.save(models['single_step'].state_dict(), os.path.join("model_saves", "single_step.pt"))
 
-    # torch.save(models['single_step'].state_dict(), os.path.join("model_saves", "single_step"))
+        if not cfg.wandb:
+            obs = dataset["obs"][np.random.randint(len(dataset["obs"]))]
+            save_heatmap(cfg, models["single_step"].encoder, obs, "single_step.png")
 
-    # obs = dataset["obs"][np.random.randint(len(dataset["obs"]))]
+    else:
+        models = create_models(cfg, obs_shape, act_shape, single_step_path=cfg.ss_path)
+        models = initialize_dependant_models(models)
 
-    """ Plot the heatmap's first layer single_step """
-    # save_heatmap(cfg, models["single_step"].encoder, obs, "single_step.png")
-    # save_heatmap(cfg, models["multi_step"].encoder, obs, "multi_step.png")
+        # freeze the single_step model
+        ss_encoder = models['single_step']
+        for param in ss_encoder.parameters(): # FIXME: might need to call .encoder instead of just params on the entire model
+            param.requires_grad = False
 
-def train(cfg: DictConfig, dataset, models, train_multi_step=False):
+        # train the multistep encoder
+        train(cfg, dataset, models, train_ms=True)
+
+        return # STOPS TRAINING FOR RECON
+
+        # freeze the multi_step model
+        ms_encoder = models['multi_step']
+        for param in ms_encoder.parameters(): # FIXME: same here
+            param.requires_grad = False
+
+        # train the multistep encoder reconstruction model
+        train(cfg, dataset, models, train_recon=True)
+
+        if not cfg.wandb:
+            obs = dataset["obs"][np.random.randint(len(dataset["obs"]))]
+            save_heatmap(cfg, models["single_step"].encoder, obs, "single_step.png")
+            save_heatmap(cfg, models["multi_step"].encoder, obs, "multi_step.png")
+
+def train(cfg: DictConfig, dataset, models, train_ss=False, train_ms=False, train_recon=False):
+    print(f'TRAINING NOW train_ss: {train_ss}, train_ms: {train_ms}, train_recon: {train_recon}')
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
     train_step = 0
@@ -134,9 +182,11 @@ def train(cfg: DictConfig, dataset, models, train_multi_step=False):
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
 
             for model_name, model in models.items():
-                if (train_multi_step and model_name == "single_step"):
+                if (not train_ss and model_name == "single_step"):
                     continue
-                if (not train_multi_step and model_name == "multi_step"):
+                if (not train_ms and model_name == "multi_step"):
+                    continue
+                if (not train_recon and model_name == "ms_reconstruction"):
                     continue
 
                 log = model.train_step(samples, epoch)
@@ -144,11 +194,6 @@ def train(cfg: DictConfig, dataset, models, train_multi_step=False):
 
             if cfg.wandb:
                 log_to_wandb(cfg, models, wandb_logs, samples, train_step)
-
-            # if cfg.wandb:
-            #     labeled_logs = {f"{algo_name}/{key}": value for algo_name, algo_log in wandb_logs.items() for key, value in algo_log.items()}
-            #     if (i == steps_per_epoch - 10): print(labeled_logs.keys())
-            #     wandb.log(labeled_logs, step=train_step)
 
             train_step += 1
 

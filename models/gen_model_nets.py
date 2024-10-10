@@ -215,11 +215,11 @@ class GenDecoder2D(torch.nn.Module):
             .unsqueeze(-1)
             .expand(-1, -1, self.h, self.w)
         )
-            
+
         if self.use_grid:
             # combined = torch.cat([obs, grid_expand], dim=1)
             combined = torch.cat([x_expand, grid_expand], dim=1)
         else:
             combined = x_expand
-        
+
         return self.conv(combined)

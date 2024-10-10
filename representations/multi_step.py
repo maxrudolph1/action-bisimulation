@@ -66,6 +66,11 @@ class MultiStep(torch.nn.Module):
         self.target_encoder = deepcopy(self.encoder).cuda()
         self.ss_train_warmup_epochs = kwargs.get("ss_train_warmup_epochs", 0)
 
+        self.oxn_encoded_target_sum = 0.0
+        self.ox_encoded_target_sum = 0.0
+        self.latent_forward_prediction_sum = 0.0
+        self.steps_counter = 0
+
 
     # def batch_forward_model(self, obs, act):
     #     actions = torch.tensor([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=int).cuda()
@@ -119,7 +124,6 @@ class MultiStep(torch.nn.Module):
             obs_y_next = similar_action_obs_next
 
         ox_encoded_online = self.encoder(obs_x)
-
         oy_encoded_online = self.encoder(obs_y)
 
         with torch.no_grad():
@@ -128,11 +132,24 @@ class MultiStep(torch.nn.Module):
             # oxk_encoded_target = self.target_encoder(kobs_x)  # target encoder z = \hat{phi}( x^(k) )
             oxn_encoded_target = self.target_encoder(obs_x_next) # target encoder z = \hat{phi}( x' )
 
-
         # optimize latent forward model
         if not self.use_states_with_same_action:
             self.forward_model_optimizer.zero_grad()
             latent_forward_prediction = self.forward_model(ox_encoded_target.detach(), act)
+
+            # NOTE: For logging
+            oxn_encoded_target_norm = np.linalg.norm(oxn_encoded_target.detach().cpu())
+            ox_encoded_target_norm = np.linalg.norm(ox_encoded_target.detach().cpu())
+            latent_forward_prediction_norm = np.linalg.norm(latent_forward_prediction.detach().cpu())
+
+            self.oxn_encoded_target_sum += oxn_encoded_target_norm
+            self.ox_encoded_target_sum += ox_encoded_target_norm
+            self.latent_forward_prediction_sum += latent_forward_prediction_norm
+            self.steps_counter += 1
+
+            oxn_target_encoded_next_avg = self.oxn_encoded_target_sum / self.steps_counter
+            ox_encoded_target_avg = self.ox_encoded_target_sum / self.steps_counter
+            latent_forward_prediction_avg = self.latent_forward_prediction_sum / self.steps_counter
 
             forward_model_next_loss = F.mse_loss(
                 latent_forward_prediction,
@@ -158,6 +175,13 @@ class MultiStep(torch.nn.Module):
                 "inverse_acc": (inverse_model_pred.argmax(dim=1) == act).float().mean().detach().item(),
                 "inverse_loss": inverse_model_loss.detach().item(),
                 # "inverse_acc_forward": (inverse_model_pred_forward_model_enc.argmax(dim=1) == act).float().mean().detach().item(),
+                "oxn encoded target magnitude": oxn_encoded_target_norm,
+                "ox encoded target magnitude": ox_encoded_target_norm,
+                "latent_forward_prediction magnitude": latent_forward_prediction_norm,
+
+                "oxn encoded target avg": oxn_target_encoded_next_avg,
+                "ox encoded target avg": ox_encoded_target_avg,
+                "latent_forward_prediction avg": latent_forward_prediction_avg,
             }
 
         with torch.no_grad():
@@ -227,7 +251,6 @@ class MultiStep(torch.nn.Module):
             distances, (1 - self.gamma) * ss_distances.detach() + self.gamma * target_distances.detach()
         )
 
-
         self.encoder_optimizer.zero_grad()
         ms_loss.backward()
         self.encoder_optimizer.step()
@@ -245,9 +268,13 @@ class MultiStep(torch.nn.Module):
             "cur_ms_distance": cur_ms_distance_size,
             "forward_pred_ms_distance": target_ms_distance_size, # wasserstein expectation
             "gamma": self.gamma, # plotting shouldnt change
-            # add plottign for forward dynamics loss
-            # "forward_loss": forward_model_next_loss
+
+            # add plotting for forward dynamics loss
+            # "forward_loss": forward_model_next_loss,
+            # "encoded target magnitude": oxn_encoded_target_norm,
+            # "latent_forward_prediction magnitude": latent_forward_prediction_norm,
         }
+        log.update(forward_loss_logs)
         return log
 
 

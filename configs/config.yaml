@@ -1,8 +1,8 @@
 logdir: 'results'
-# dataset: '/home/ekuo/Github/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size10000__k_steps_0.hdf5'
-dataset: '/home/ekuo/Github/action-bisim-repos/action-bisimulation-UNCOMMITTED-MINE/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_0.hdf5'
-# wandb: True
+dataset: '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_0.hdf5'
+ss_path: '/nfs/homes/bisim/ekuo/action-bisimulation/model_saves/single_step_sparkling_plant_53.pt'
 wandb: False
+save_ss: False
 seed: 0
 n_epochs: 10
 batch_size: 256
@@ -10,7 +10,7 @@ met_log_freq: 10 # logging every this many number of steps (met = metrics)
 img_log_freq: 1000
 
 defaults:
-  # - algos: [single_step, multi_step]
+  # - algos: [single_step, multi_step, ms_reconstruction]
   - algos: single_step
   - /networks@encoder: cnn
   - /networks@forward: mlp
