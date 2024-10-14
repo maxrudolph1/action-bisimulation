@@ -24,9 +24,6 @@ from representations.multi_step import MultiStep
 import os
 
 
-from omegaconf import DictConfig, OmegaConf
-import hydra
-
 MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep}
 
 def load_dataset(dataset_path):

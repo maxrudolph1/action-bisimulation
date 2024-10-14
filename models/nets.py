@@ -120,14 +120,13 @@ class DQNHER(torch.nn.Module):
         if not (encoder_path is None) and (len(encoder_path) > 0):
             self.encoder=torch.load(encoder_path).encoder
         else:
-            if args.use_gen_nets:
-                self.encoder = gen_model_nets.Encoder(state_shape,
-                                                    hidden_layers=args.encode_hidden_layers,
-                                                    num_pooling=args.encode_num_pooling,
-                                                    acti=args.encode_activation,
-                                                    use_layer_norm=args.encode_layer_norm).cuda()
-            else:
-                self.encoder = Encoder(state_shape)
+
+            self.encoder = gen_model_nets.Encoder(state_shape,
+                                                hidden_layers=args.encode_hidden_layers,
+                                                num_pooling=args.encode_num_pooling,
+                                                acti=args.encode_activation,
+                                                use_layer_norm=args.encode_layer_norm).cuda()
+
         if args.use_gen_nets:
             self.dqn = gen_model_nets.GenDQN(self.encoder.output_dim,
                                                 4 * atoms,
