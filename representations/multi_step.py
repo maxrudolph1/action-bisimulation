@@ -48,7 +48,7 @@ class MultiStep(torch.nn.Module):
         if kwargs.get("warm_start_ms_with_ss"):
             self.encoder = deepcopy(self.ss_encoder).cuda()
         else:
-            self.encoder = gen_model_nets.GenEncoder(obs_shape, **encoder_cfg[encoder_type]).cuda() 
+            self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg[encoder_type]).cuda() 
             
         self.embed_dim = self.encoder.output_dim
         self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, **forward_cfg[forward_type]).cuda()
@@ -91,7 +91,6 @@ class MultiStep(torch.nn.Module):
     def train_step(self, batch, epoch):
         if epoch < self.ss_train_warmup_epochs:
             return {}
-        
         obs_x = torch.as_tensor(batch["obs"], device="cuda")  # observation ( x )
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
         act = torch.as_tensor(batch["action"], device="cuda") # action taken at time step ( a_x )

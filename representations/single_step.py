@@ -20,7 +20,7 @@ class SingleStep(torch.nn.Module):
         forward_type = list(forward_cfg.keys())[0]
         inverse_type = list(inverse_cfg.keys())[0]
 
-        self.encoder = gen_model_nets.GenEncoder(obs_shape, **encoder_cfg[encoder_type]).cuda()
+        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg[encoder_type]).cuda()
         self.embed_dim = self.encoder.output_dim
         self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, **forward_cfg[forward_type]).cuda()
         self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape, **inverse_cfg[inverse_type]).cuda()
