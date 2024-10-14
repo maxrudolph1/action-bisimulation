@@ -27,16 +27,20 @@ episode_per_test: 100
 use_her: false
 dense_reward: false
 name: ""
-max_timesteps: 50
-grid_size: 10
-num_obstacles: 0
-obstacle_size: 1
-static_goal: false
-freeze_encoder: false
+
 device: "cuda"  # or "cpu", depending on availability
 frames_stack: 1
 resume_path: null
 save_models: True
+freeze_encoder: false
+
+env:
+  max_timesteps: 50
+  grid_size: 10
+  num_obstacles: 0
+  obstacle_diameter: 1
+  static_goal: false
+
 
 # network arguments
 encoder_args:
@@ -45,6 +49,7 @@ encoder_args:
   activation: "relu"
   layer_norm: false
   output_dim: 256
+
 dqn_args:
   hidden_layers: [256]
   activation: "relu"
@@ -53,7 +58,7 @@ dqn_args:
 
 logger: "wandb" 
 wandb_project: "nav2d"
-wandb_entity: "maxrudolph"
+wandb_entity: "YOUR_ENTITY"
 watch: false
 save_buffer_name: null
 

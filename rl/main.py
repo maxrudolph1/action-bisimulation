@@ -26,10 +26,9 @@ import hydra
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
-    env_lambda = lambda: Navigate2D(20, grid_size=15, 
+    env_lambda = lambda: Navigate2D(cfg.env.num_obstacles, grid_size=cfg.env.grid_size, 
                                 static_goal=True,
-                                obstacle_diameter=2,
-                                env_config=None)
+                                obstacle_diameter=cfg.env.obstacle_diameter,)
 
     env = env_lambda()
 
