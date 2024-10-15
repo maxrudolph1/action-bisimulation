@@ -78,7 +78,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num-workers", default=32, type=int)
-    parser.add_argument("--size", type=int, default=1000000)
+    parser.add_argument("--size", type=int, default=10000)
     parser.add_argument("--epsilon", type=float, default=0.5)
     parser.add_argument("--num-obstacles", type=int, default=10)
     parser.add_argument("--obstacle-size", type=int, default=1)

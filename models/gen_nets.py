@@ -104,12 +104,10 @@ class GeneralConv2DEncoder(torch.nn.Module):
             # torch.nn.MaxPool2d((2, 2)), #torch.nn.MaxPool2d((5, 5) if h // 4 > 2 else (2, 2)),
         )
         self.kwargs = kwargs
-        if 'use_grid' in kwargs and kwargs['use_grid']:
-            self.output_dim = self.conv(torch.zeros([1, in_channels, h, w])).flatten().shape[0]
-        else:
-            self.output_dim = self.conv(torch.zeros([1, in_channels, h, w])).flatten().shape[0]
+
+        self.output_dim = self.conv(torch.zeros([1, in_channels, h, w])).flatten().shape[0]
         
-        print("Embed dim:", self.output_dim)
+        
 
     def forward(self, obs):
         obs = torch.as_tensor(obs, device="cuda")

@@ -1,10 +1,9 @@
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.999 
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.99 
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.98 
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.95 
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.90 
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.75 
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.50
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.25
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.10
-python main.py algos='[multi_step, single_step]' wandb=True algos.multi_step.gamma=0.01
+# python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=1 algos.multi_step.warm_start_ms_with_ss=False
+# python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=3 algos.multi_step.warm_start_ms_with_ss=False
+# python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=5 algos.multi_step.warm_start_ms_with_ss=False
+# python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=7 algos.multi_step.warm_start_ms_with_ss=False
+
+python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=1 algos.multi_step.warm_start_ms_with_ss=True algos.multi_step.use_states_with_same_action=False
+python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=3 algos.multi_step.warm_start_ms_with_ss=True algos.multi_step.use_states_with_same_action=False
+python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=5 algos.multi_step.warm_start_ms_with_ss=True algos.multi_step.use_states_with_same_action=False
+python main.py algos=multi_step wandb=True algos.multi_step.forward_model_steps_per_batch=7 algos.multi_step.warm_start_ms_with_ss=True algos.multi_step.use_states_with_same_action=False

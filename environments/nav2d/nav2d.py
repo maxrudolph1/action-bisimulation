@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 from gym import spaces
 from gym.utils import seeding
 import heapq
@@ -56,7 +56,7 @@ class Navigate2D(gym.Env):
         self.action_space.seed(seed)
         return [seed]
 
-    def reset(self):
+    def reset(self, seed=0, options=None):
         while True:
             self.step_count = 0
             grid = np.zeros((3, self.size, self.size), dtype=np.float32)
@@ -110,7 +110,7 @@ class Navigate2D(gym.Env):
             if self.find_path() is not None:
                 break
 
-        return self._get_obs(self.grid, self.pos, self.goal)
+        return self._get_obs(self.grid, self.pos, self.goal), {}
 
     def step(self, action):
         self.step_count += 1
@@ -136,7 +136,7 @@ class Navigate2D(gym.Env):
         info["pos"] = self.pos.copy()
         info["goal"] = self.goal.copy()
         info["dist"] = self.dist.copy()
-        return self._get_obs(self.grid, self.pos, self.goal), reward, done, info
+        return self._get_obs(self.grid, self.pos, self.goal), reward, done, done, info
 
     def forward_oracle(self, state):
         # state: shape (n, c, h, w)

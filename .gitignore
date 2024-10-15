@@ -2,3 +2,5 @@
 **/*.pyc
 outputs/
 wandb/
+results/
+log/

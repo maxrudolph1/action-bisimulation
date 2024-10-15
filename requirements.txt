@@ -7,3 +7,4 @@ pyyaml
 torch==2.4.1
 tqdm
 wandb
+tianshou

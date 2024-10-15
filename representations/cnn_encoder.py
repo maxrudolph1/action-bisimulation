@@ -75,7 +75,6 @@ class Encoder(torch.nn.Module):
         else:
             self.output_dim = self.conv(torch.zeros([1, c, h, w])).flatten().shape[0]
         
-        print("Embed dim:", self.output_dim)
 
     def forward(self, obs):
         obs = torch.as_tensor(obs, device="cuda")

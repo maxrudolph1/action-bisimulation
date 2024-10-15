@@ -9,13 +9,22 @@ import numpy as np
 from models import gen_nets
 
 class GenEncoder(torch.nn.Module):
-    def __init__(self, obs_dim, normalized=False, **kwargs):
+    def __init__(self, obs_dim, cfg):
         super().__init__()
-        self.encoder = gen_nets.GeneralConv2DEncoder(obs_dim, normalized=False, **kwargs)
-        self.output_dim = self.encoder.output_dim
+        self.cnn_encoder = gen_nets.GeneralConv2DEncoder(obs_dim, normalized=False, **cfg)
+        if 'output_dim' in cfg:
+            self.use_output_layer = True
+            self.output_dim = cfg['output_dim']
+            self.last_layer = nn.Sequential(nn.ReLU(), nn.Linear(self.cnn_encoder.output_dim, self.output_dim))
+        else:    
+            self.output_dim = self.encoder.output_dim
+            self.use_output_layer = False
         
     def forward(self, obs):
-        return self.encoder(obs)
+        z = self.cnn_encoder(obs)
+        if self.use_output_layer:
+            z = self.last_layer(z)
+        return z
 
 class GenInverseDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, **kwargs):
@@ -85,9 +94,7 @@ class GenDQN(torch.nn.Module):
 
 class GenDQNHER(torch.nn.Module):
     def __init__(self, state_shape, action_dim=4, atoms=1, split_obs=False, device='cpu', encoder_path='', **kwargs):
-        super().__init__()
-        
-        # self.encoder = GoallessEncoder(state_shape)
+        super().__init__()        
         if not (encoder_path is None) and (len(encoder_path) > 0):
             self.encoder=torch.load(encoder_path).encoder
         else:
@@ -109,13 +116,13 @@ class GenDQNHER(torch.nn.Module):
         return logits, state
 
 class GenDQNFull(torch.nn.Module):
-    def __init__(self, state_shape, action_dim=4, atoms=1, device='cpu', **kwargs):
+    def __init__(self, state_shape, action_dim, cfg):
         super().__init__()
-        self.encoder = GenEncoder(state_shape, **kwargs)
-        self.dqn = GenDQN(self.encoder.output_dim, 4 * atoms, **kwargs['DQN_args'])
-        self.atoms = atoms
+        self.encoder = GenEncoder(state_shape, cfg['encoder_args'])
+        self.dqn = GenDQN(embed_dim=self.encoder.output_dim, action_dim=action_dim * cfg['dqn_args']['atoms'], **cfg['dqn_args'])
+        self.atoms = cfg['dqn_args']['atoms']
         self.action_dim = action_dim
-        self.device = device
+        self.device = cfg['device']
         
     def forward(self, obs, state=None, info={}):
         
@@ -212,17 +219,9 @@ class GenDecoder2D(torch.nn.Module):
             grid_expand = self.grid.expand(x.shape[0], -1, -1, -1)
         x_expand = (
             x.unsqueeze(-1)
-            .unsqueeze(-1) #this is adding 2 dimensions. x should be dimensions of batch size x 1 x 1 x encoding
+            .unsqueeze(-1)
             .expand(-1, -1, self.h, self.w)
         )
-
-        '''
-        copy into image thats 15x15xembedding where every pixel is the same (so you
-        can control the exact output dimensions)
-
-
-        batch size x chanell deimension (embed dimension) x hieght x width
-        '''
             
         if self.use_grid:
             # combined = torch.cat([obs, grid_expand], dim=1)

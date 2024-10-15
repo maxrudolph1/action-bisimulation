@@ -20,7 +20,7 @@ class SingleStep(torch.nn.Module):
         forward_type = list(forward_cfg.keys())[0]
         inverse_type = list(inverse_cfg.keys())[0]
 
-        self.encoder = gen_model_nets.GenEncoder(obs_shape, **encoder_cfg[encoder_type]).cuda()
+        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg[encoder_type]).cuda()
         self.embed_dim = self.encoder.output_dim
         self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, **forward_cfg[forward_type]).cuda()
         self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape, **inverse_cfg[inverse_type]).cuda()
@@ -77,12 +77,12 @@ class SingleStep(torch.nn.Module):
             )
         
         if self.dynamic_l1_penalty:
-            gain = 1
-            cur_l1_pentaly = self.l1_penalty * (1 - np.exp(- accuracy.detach().item() * gain))
+            gain = 5
+            cur_l1_penalty = self.l1_penalty * np.exp(- gain * (accuracy.detach().item() - 1) ** 2)
         else:
-            cur_l1_pentaly = self.l1_penalty
+            cur_l1_penalty = self.l1_penalty
 
-        l1_loss = cur_l1_pentaly * l1_loss
+        l1_loss = cur_l1_penalty * l1_loss
         forward_model_loss = self.forward_model_weight * forward_model_loss
         total_loss = (
             forward_model_loss
@@ -93,14 +93,26 @@ class SingleStep(torch.nn.Module):
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
-
-
+        mean_element_magnitude = torch.abs(o_encoded).float().mean().detach().item()
         ret = {
             "inverse_loss": inverse_model_loss.detach().item(),
             "l1_loss": l1_loss.detach().item(),
             "loss": total_loss.detach().item(),
             "accuracy": accuracy.detach().item(),
-            "cur_l1_pentaly": cur_l1_pentaly,
+            "cur_l1_pentaly": cur_l1_penalty,
+            "mean_element_magnitude": mean_element_magnitude,
+            "mean_representation_magnitude": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
         }
         self.last_ret = ret
         return ret
+    
+    def save(self, path):
+        torch.save(
+            {
+                "encoder": self.encoder,
+                "forward_model": self.forward_model,
+                "inverse_model": self.inverse_model,
+                "optimizer": self.optimizer,
+            },
+            path,
+        )
