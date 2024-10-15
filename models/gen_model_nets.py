@@ -212,9 +212,17 @@ class GenDecoder2D(torch.nn.Module):
             grid_expand = self.grid.expand(x.shape[0], -1, -1, -1)
         x_expand = (
             x.unsqueeze(-1)
-            .unsqueeze(-1)
+            .unsqueeze(-1) #this is adding 2 dimensions. x should be dimensions of batch size x 1 x 1 x encoding
             .expand(-1, -1, self.h, self.w)
         )
+
+        '''
+        copy into image thats 15x15xembedding where every pixel is the same (so you
+        can control the exact output dimensions)
+
+
+        batch size x chanell deimension (embed dimension) x hieght x width
+        '''
             
         if self.use_grid:
             # combined = torch.cat([obs, grid_expand], dim=1)

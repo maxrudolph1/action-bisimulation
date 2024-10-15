@@ -1,4 +1,6 @@
 class ForwardModel(torch.nn.Module):
+    fw_model_step_loss = None
+
     def __init__(self, obs_shape, action_dim, args=None):
         super().__init__()
         self.forward_model = nets.ForwardNet(obs_shape, action_dim).cuda()
@@ -16,6 +18,7 @@ class ForwardModel(torch.nn.Module):
             self.forward_model(obs, act),
             obs_next,
         )
+        step_loss = forward_loss
         self.optimizer.zero_grad()
         forward_loss.backward()
         self.optimizer.step()
