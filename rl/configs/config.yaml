@@ -58,7 +58,7 @@ dqn_args:
 
 logger: "wandb" 
 wandb_project: "nav2d"
-wandb_entity: "YOUR_ENTITY"
+wandb_entity: "rhearai"
 watch: false
 save_buffer_name: null
 
