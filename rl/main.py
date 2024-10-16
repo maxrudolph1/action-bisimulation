@@ -30,6 +30,24 @@ import wandb #for sweeping
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
     print("inside main")
+
+    if wandb.run is not None:
+        sweep_config = wandb.config
+        cfg.env.grid_size = sweep_config.get("grid_size", cfg.env.grid_size)
+        cfg.env.num_obstacles = sweep_config.get("num_obstacles", cfg.env.num_obstacles)
+        cfg.env.obstacle_diameter = sweep_config.get("obstacle_diameter", cfg.env.obstacle_diameter)
+
+    print(f"Grid Size: {cfg.env.grid_size}")
+    print(f"Number of Obstacles: {cfg.env.num_obstacles}")
+    print(f"Obstacle Diameter: {cfg.env.obstacle_diameter}")
+    
+    # grid_size = int(cfg.env.grid_size)
+    # num_obstacles = int(cfg.env.num_obstacles)
+    # obstacle_diameter = int(cfg.env.obstacle_diameter)
+    # print(f"Grid Size: {grid_size}")
+    # print(f"Number of Obstacles: {num_obstacles}")
+    # print(f"Obstacle Diameter: {obstacle_diameter}")
+
     env_lambda = lambda: Navigate2D(cfg.env.num_obstacles, grid_size=cfg.env.grid_size, 
                                 static_goal=True,
                                 obstacle_diameter=cfg.env.obstacle_diameter,)
@@ -187,9 +205,9 @@ def main(cfg: DictConfig):
         logger = WandbLogger(save_interval=1,name='test' ,  project=cfg.wandb_project, monitor_gym=False, entity=cfg.wandb_entity)
     
     # sweep variables from the sweep.yaml file, just making sure they're set correctly to be dynamic
-    cfg.env.grid_size = wandb.config.grid_size
-    cfg.env.num_obstacles = wandb.config.num_obstacles
-    cfg.env.obstacle_diameter = wandb.config.obstacle_diameter
+    # cfg.env.grid_size = wandb.config.grid_size
+    # cfg.env.num_obstacles = wandb.config.num_obstacles
+    # cfg.env.obstacle_diameter = wandb.config.obstacle_diameter
     # cfg.epoch = wandb.config.get("epoch", cfg.epoch)
 
 
