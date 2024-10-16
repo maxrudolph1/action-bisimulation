@@ -58,7 +58,8 @@ dqn_args:
 
 logger: "wandb" 
 wandb_project: "nav2d"
-wandb_entity: "rhearai"
+wandb_entity: "rhearai-university-of-texas-at-austin" #"rhearai" need to figure out why it only works with team name
+# https://wandb.ai/rhearai-university-of-texas-at-austin/nav2d
 watch: false
 save_buffer_name: null
 

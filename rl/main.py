@@ -1,6 +1,8 @@
 import argparse
 import datetime
 import os
+import sys
+sys.path.append('/nfs/homes/bisim/rrai/action-bisimulation')
 import pprint
 import yaml
 import numpy as np
@@ -16,7 +18,7 @@ from tianshou.utils import WandbLogger
 from tianshou.utils.net.discrete import IntrinsicCuriosityModule
 import tianshou as ts
 import gymnasium as gym
-from environments.nav2d.nav2d import Navigate2D
+from environments.nav2d.nav2d import Navigate2D 
 from models import nets, gen_model_nets
 from torch.utils.tensorboard import SummaryWriter
 
