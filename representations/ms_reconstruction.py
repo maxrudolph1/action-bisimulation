@@ -26,7 +26,8 @@ class MultiStepReconstruction(torch.nn.Module):
         self.steps_until_sync = 0
         self.sync_freq = sync_freq
 
-        self.decoder_model = gen_model_nets.GenDecoder2D(obs_shape[0], obs_shape).cuda()
+        # self.decoder_model = gen_model_nets.GenDecoder2D(obs_shape[0], obs_shape).cuda()
+        self.decoder_model = gen_model_nets.GenDecoder2D(1152, obs_shape).cuda()
 
         self.decoder_optimizer = torch.optim.Adam(
             list(self.decoder_model.parameters()),
@@ -36,18 +37,20 @@ class MultiStepReconstruction(torch.nn.Module):
 
         self.encoder = None
 
-    def share_dependant_models(self, models):
+    def share_dependant_models(self, model):
         # self.encoder = models.get("multi_step").encoder
-        self.encoder = models.get("single_step").encoder
+        self.encoder = model.encoder
 
-    def train_step(self, batch):
+    def train_step(self, batch, epoch):
         if self.encoder is None:
             raise ValueError("Encoder not shared. Call share_dependant_models() before training.")
 
         obs_x = torch.as_tensor(batch["obs"], device="cuda")
+        # (256, 3, 15, 15)
+        # print("OBS_x shape: ", obs_x.shape, "\nbatch[obs] shape", batch["obs"].shape)
 
-        ox_encoded_online = self.encoder(obs_x)
-        print(ox_encoded_online.shape)
+        ox_encoded_online = self.encoder(obs_x).detach()
+        # print(ox_encoded_online.shape) # torch.Size([128, 1152]
         obs_x_reconstructed = self.decoder_model(ox_encoded_online)
         decoder_loss = F.mse_loss(obs_x_reconstructed, obs_x)
 

@@ -210,8 +210,13 @@ class GenDecoder2D(torch.nn.Module):
     def forward(self, x):
         if self.use_grid:
             grid_expand = self.grid.expand(x.shape[0], -1, -1, -1)
+        # expands out to cover a 15 by 15 grid. [256, 1152] -> [256, 1152, 15, 15]
+        # print('-' * 10 + "FORWARD" + '-' * 10)
+        # print(x.shape)  # should be [256, 1152] when correct
+        # print('-' * 27)
         x_expand = (
-            x.unsqueeze(-1)
+            x
+            .unsqueeze(-1)
             .unsqueeze(-1)
             .expand(-1, -1, self.h, self.w)
         )

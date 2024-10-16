@@ -185,8 +185,9 @@ class MultiStep(torch.nn.Module):
             }
 
         with torch.no_grad():
-            ss_encoded_x = self.ss_encoder(obs_x)
-            ss_encoded_y = self.ss_encoder(obs_y)
+            ss_encoded_x = self.ss_encoder(obs_x).detach()
+            ss_encoded_y = self.ss_encoder(obs_y).detach()
+
             ss_diffs = (ss_encoded_x - ss_encoded_y).detach()
             ss_distances = torch.linalg.norm(ss_diffs, ord=1, dim=-1)
 
