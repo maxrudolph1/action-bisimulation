@@ -1,5 +1,4 @@
 # this sweep is for the grid_size, num_obstacles, and obstacle_diameter hyperparameters
-
 method: grid #should this be random instead? more efficient...?
 metric:
   name: reward
@@ -11,5 +10,16 @@ parameters:
     values: [0, 5, 10, 15, 20, 25, 30]  #paper: 20
   obstacle_diameter:
     values: [1, 2, 3, 4]  #paper: 2
+
+program: /nfs/homes/bisim/rrai/action-bisimulation/rl/main.py
+command:
+  - ${env}
+  - python
+  - ${program}
+  - hydra.run.dir=.
+  - env.grid_size=${grid_size}
+  - env.num_obstacles=${num_obstacles}
+  - env.obstacle_diameter=${obstacle_diameter}
+
 
 #TODO: lab meeting question - how do you choose these values? feels like just random guessing. 

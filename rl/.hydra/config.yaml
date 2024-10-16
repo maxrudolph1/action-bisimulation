@@ -1,0 +1,67 @@
+task: Nav2D-v0
+algo_name: dqn
+seed: 0
+scale_obs: 0
+eps_test: 0.005
+eps_train: 0.9
+eps_train_final: 0.2
+buffer_size: 100000
+lr: 0.0001
+gamma: 0.99
+n_step: 3
+target_update_freq: 500
+epoch: 200
+step_per_epoch: 10000
+step_per_collect: 100
+update_per_step: 0.1
+batch_size: 32
+training_num: 10
+test_num: 10
+logdir: log
+render: 0.0
+date: false
+pretrained_encoder_path: null
+episode_per_test: 100
+use_her: false
+dense_reward: false
+name: ''
+device: cuda
+frames_stack: 1
+resume_path: null
+save_models: true
+freeze_encoder: false
+env:
+  max_timesteps: 50
+  grid_size: 10
+  num_obstacles: 0
+  obstacle_diameter: 1
+  static_goal: false
+encoder_args:
+  hidden_layers:
+  - 64
+  - 64
+  - 64
+  - 96
+  - 96
+  - 128
+  num_pooling: 2
+  activation: relu
+  layer_norm: false
+  output_dim: 256
+dqn_args:
+  hidden_layers:
+  - 256
+  activation: relu
+  layer_norm: false
+  atoms: 1
+logger: wandb
+wandb_project: nav2d
+wandb_entity: rhearai-university-of-texas-at-austin
+watch: false
+save_buffer_name: null
+icm_lr_scale: 0.0
+icm_reward_scale: 0.01
+icm_forward_loss_weight: 0.2
+state_shape: None
+action_shape: None
+resume_id: None

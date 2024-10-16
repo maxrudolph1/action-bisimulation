@@ -25,9 +25,11 @@ from torch.utils.tensorboard import SummaryWriter
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
+import wandb #for sweeping
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
+    print("inside main")
     env_lambda = lambda: Navigate2D(cfg.env.num_obstacles, grid_size=cfg.env.grid_size, 
                                 static_goal=True,
                                 obstacle_diameter=cfg.env.obstacle_diameter,)
@@ -166,10 +168,31 @@ def main(cfg: DictConfig):
     log_name = os.path.join(cfg.task, cfg.algo_name, str(cfg.seed), cfg.name + (("_" + now) if cfg.date else ""))
     log_path = os.path.join(cfg.logdir, log_name)
 
+    
+    # small test
+    # wandb.init(
+    #     project="nav2d",
+    #     entity="rhearai-university-of-texas-at-austin", 
+    #     config={
+    #         "grid_size": 15,
+    #         "num_obstacles": 10,
+    #         "obstacle_diameter": 2,
+    #         "epoch": 5
+    #     }
+    # )
+
+    
     # logger
     if cfg.logger == "wandb":
         logger = WandbLogger(save_interval=1,name='test' ,  project=cfg.wandb_project, monitor_gym=False, entity=cfg.wandb_entity)
-        
+    
+    # sweep variables from the sweep.yaml file, just making sure they're set correctly to be dynamic
+    cfg.env.grid_size = wandb.config.grid_size
+    cfg.env.num_obstacles = wandb.config.num_obstacles
+    cfg.env.obstacle_diameter = wandb.config.obstacle_diameter
+    # cfg.epoch = wandb.config.get("epoch", cfg.epoch)
+
+
     writer = SummaryWriter(log_path)
     writer.add_text("cfg", str(cfg))
 
@@ -274,4 +297,5 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    print("got to main")
     main()
