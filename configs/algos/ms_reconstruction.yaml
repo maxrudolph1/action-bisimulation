@@ -1,4 +1,5 @@
 ms_reconstruction:
   tau: 0.005
   sync_freq: 1
+  # learning_rate: 0.001
   learning_rate: 0.0001

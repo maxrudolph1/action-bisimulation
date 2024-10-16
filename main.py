@@ -99,7 +99,7 @@ def layered_heatmaps(original, reconstruction, log_prefix):
     for layer in range(layers):
         # Create a figure
         fig, axes = plt.subplots(1, 2, figsize=(15, 7))
-        
+
         ax1 = axes[0]
         im1 = ax1.imshow(original[layer], cmap='viridis')
         ax1.set_title(f"{log_prefix} Original Layer {layer+1}", fontsize=14)
@@ -167,7 +167,7 @@ def main(cfg: DictConfig):
         models = create_models(cfg, obs_shape, act_shape)
         models = initialize_dependant_models(models)
 
-        train(cfg, dataset, models, train_ss=True)
+        train(cfg, dataset, models, train=["single_step"])
 
         torch.save(models['single_step'].state_dict(), os.path.join("model_saves", "single_step.pt"))
 
@@ -179,24 +179,12 @@ def main(cfg: DictConfig):
         models = create_models(cfg, obs_shape, act_shape, single_step_path=cfg.ss_path)
         models = initialize_dependant_models(models)
 
-        # freeze the single_step model
-        # ss_encoder = models['single_step']
-        # for param in ss_encoder.parameters():
-        #     param.requires_grad = False
-
-        train(cfg, dataset, models, train=["ms_reconstruction"])
-        
-        return # STOPS TRAINING FOR MS
+        # train(cfg, dataset, models, train=["ms_reconstruction"])
 
         # train the multistep encoder
         train(cfg, dataset, models, train=["multi_step"])
 
         return # STOPS TRAINING FOR RECON
-
-        # freeze the multi_step model
-        # ms_encoder = models['multi_step']
-        # for param in ms_encoder.parameters():
-        #     param.requires_grad = False
 
         # train the multistep encoder reconstruction model
         train(cfg, dataset, models, train=["ms_reconstruction"])

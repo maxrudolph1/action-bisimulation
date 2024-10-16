@@ -51,6 +51,10 @@ class SingleStep(torch.nn.Module):
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
 
+        encoded_obs_magnitude = np.linalg.norm(o_encoded.detach().cpu().numpy())
+        encoded_obs_next_magnitude = np.linalg.norm(on_encoded.detach().cpu().numpy())
+        magnitude_diff_o_encoded_on_encoded = np.linalg.norm(o_encoded.detach().cpu().numpy() - on_encoded.detach().cpu().numpy())
+
         if self.forward_model_weight > 0:
             forward_model_loss = F.mse_loss(
                 self.forward_model(o_encoded, act),
@@ -102,6 +106,9 @@ class SingleStep(torch.nn.Module):
             "loss": total_loss.detach().item(),                 # total loss
             "accuracy": accuracy.detach().item(),               # accuracy of predicting discrete actions
             "cur_l1_penalty": cur_l1_penalty,                   # beta in the regularization part of ss model
+            "encoded_obs_magnitude": encoded_obs_magnitude,     # magnitude of encoded observation
+            "encoded_obs_next_magnitude": encoded_obs_next_magnitude, # magnitude of encoded next observation
+            "magnitude_diff_o_encoded_on_encoded": magnitude_diff_o_encoded_on_encoded, # magnitude difference between encoded observation and next observation
         }
         self.last_ret = ret
         return ret

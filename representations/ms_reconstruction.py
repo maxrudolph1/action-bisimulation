@@ -13,7 +13,7 @@ class MultiStepReconstruction(torch.nn.Module):
         encoder_cfg=None,
         forward_cfg=None,
         inverse_cfg=None,
-        learning_rate=None,
+        learning_rate=0.01,
         weight_decay=1e-5,
         tau=0.95,
         sync_freq=1,
@@ -33,12 +33,13 @@ class MultiStepReconstruction(torch.nn.Module):
             list(self.decoder_model.parameters()),
             lr=learning_rate,
             weight_decay=weight_decay,
+            # weight_decay=0,
         )
+        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.decoder_optimizer, factor=0.9, patience=12)
 
         self.encoder = None
 
     def share_dependant_models(self, model):
-        # self.encoder = models.get("multi_step").encoder
         self.encoder = model.encoder
 
     def train_step(self, batch, epoch):
@@ -46,19 +47,20 @@ class MultiStepReconstruction(torch.nn.Module):
             raise ValueError("Encoder not shared. Call share_dependant_models() before training.")
 
         obs_x = torch.as_tensor(batch["obs"], device="cuda")
-        # (256, 3, 15, 15)
-        # print("OBS_x shape: ", obs_x.shape, "\nbatch[obs] shape", batch["obs"].shape)
 
         ox_encoded_online = self.encoder(obs_x).detach()
-        # print(ox_encoded_online.shape) # torch.Size([128, 1152]
         obs_x_reconstructed = self.decoder_model(ox_encoded_online)
         decoder_loss = F.mse_loss(obs_x_reconstructed, obs_x)
 
         self.decoder_optimizer.zero_grad()
         decoder_loss.backward()
         self.decoder_optimizer.step()
+        # self.scheduler.step(decoder_loss)
+
+        # learning_rate = self.decoder_optimizer.param_groups[0]['lr']
 
         log = {
             "decoder_loss": decoder_loss.detach().item(),
+            # "learning_rate": learning_rate,
         }
         return log

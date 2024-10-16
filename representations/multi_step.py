@@ -95,6 +95,8 @@ class MultiStep(torch.nn.Module):
         obs_x = torch.as_tensor(batch["obs"], device="cuda")  # observation ( x )
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
         act = torch.as_tensor(batch["action"], device="cuda") # action taken at time step ( a_x )
+        # get action at next observation
+        # breakpoint()
 
         # we shuffle the observations to get a random other observation, may need to change this later because the sampling is biased.
         comp_idxs = np.random.permutation(np.arange(obs_x.shape[0]))
@@ -126,6 +128,8 @@ class MultiStep(torch.nn.Module):
         ox_encoded_online = self.encoder(obs_x)
         oy_encoded_online = self.encoder(obs_y)
 
+        oxn_encoded_online = self.encoder(obs_x_next)
+
         with torch.no_grad():
             ox_encoded_target = self.target_encoder(obs_x) # target encoder z = \hat{phi}(x)
             oy_encoded_target = self.target_encoder(obs_y) # target encoder z = \hat{phi}(y)
@@ -136,10 +140,17 @@ class MultiStep(torch.nn.Module):
         if not self.use_states_with_same_action:
             self.forward_model_optimizer.zero_grad()
             latent_forward_prediction = self.forward_model(ox_encoded_target.detach(), act)
+            latent_forward_prediction_nact = self.forward_model(ox_encoded_target.detach(), act) # forward model prediction with next action
 
             # NOTE: For logging
-            oxn_encoded_target_norm = np.linalg.norm(oxn_encoded_target.detach().cpu())
             ox_encoded_target_norm = np.linalg.norm(ox_encoded_target.detach().cpu())
+            oxn_encoded_target_norm = np.linalg.norm(oxn_encoded_target.detach().cpu())
+            diff_ox_oxn_encoded_target_norm = np.linalg.norm(ox_encoded_target.detach().cpu() - oxn_encoded_target.detach().cpu())
+
+            ox_encoded_online_norm = np.linalg.norm(ox_encoded_online.detach().cpu())
+            oxn_encoded_online_norm = np.linalg.norm(oxn_encoded_online.detach().cpu())
+            diff_ox_oxn_online_norm = np.linalg.norm(ox_encoded_online.detach().cpu() - oxn_encoded_online.detach().cpu())
+
             latent_forward_prediction_norm = np.linalg.norm(latent_forward_prediction.detach().cpu())
 
             self.oxn_encoded_target_sum += oxn_encoded_target_norm
@@ -175,8 +186,14 @@ class MultiStep(torch.nn.Module):
                 "inverse_acc": (inverse_model_pred.argmax(dim=1) == act).float().mean().detach().item(),
                 "inverse_loss": inverse_model_loss.detach().item(),
                 # "inverse_acc_forward": (inverse_model_pred_forward_model_enc.argmax(dim=1) == act).float().mean().detach().item(),
-                "oxn encoded target magnitude": oxn_encoded_target_norm,
                 "ox encoded target magnitude": ox_encoded_target_norm,
+                "oxn encoded target magnitude": oxn_encoded_target_norm,
+                "ox encoded online magnitude": ox_encoded_online_norm,
+                "oxn encoded online magnitude": oxn_encoded_online_norm,
+
+                "diff_ox_oxn_encoded_target_norm": diff_ox_oxn_encoded_target_norm,
+                "diff_ox_oxn_online_norm": diff_ox_oxn_online_norm,
+
                 "latent_forward_prediction magnitude": latent_forward_prediction_norm,
 
                 "oxn encoded target avg": oxn_target_encoded_next_avg,
