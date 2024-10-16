@@ -1,0 +1,1 @@
+python main.py algos='[multi_step, single_step]' wandb=True save_ss=False
