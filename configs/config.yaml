@@ -10,7 +10,7 @@ met_log_freq: 10 # logging every this many number of steps (met = metrics)
 img_log_freq: 1000
 
 defaults:
-  # - algos: [single_step, multi_step, ms_reconstruction]
+  # - algos: [single_step, multi_step, reconstruction]
   - algos: single_step
   - /networks@encoder: cnn
   - /networks@forward: mlp

@@ -14,11 +14,26 @@ from . import utils
 
 
 class MultiStep(torch.nn.Module):
+    # TODO: MAKE SURE TO LOG THE HYPERPARAMS
+    # BUG: WITH PERIODIC ISSUES WITH THE MAGNITUDES
+    # SHOULD MAKE SURE THAT I LOG THE THIGNS BETWEEN ACTIONS AND THE FORWARD DIFFERENCE
+    # Reduce GAMMA TO 0.90
+    # TODO:
+    # - House keeping
+    # - Include plots
+    # - Reduce Gamma to 0.9 or 0.5 for debugging purposes
+    # - turn on the flag that allows behavioral forward model
+    #   - use states with same action
+    #   - not what we want long term but should at least give me good perturb map
+    # - debug reconstruction with autoencoder and then see if it works.
+    # - store the hyperparams for each of the runs (lookup on wandb)
+
     def __init__(
         self, obs_shape, act_shape, encoder_cfg, forward_cfg, inverse_cfg,
         ss_encoder=None,
         learning_rate=None,
-        gamma=0.99,
+        # gamma=0.99,
+        gamma=0.90,
         tau=0.95,
         sync_freq=1,
         weight_decay=1e-5,

@@ -1,0 +1,1 @@
+python main.py algos='[reconstruction]' wandb=True save_ss=False

@@ -22,13 +22,13 @@ from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
-from representations.ms_reconstruction import MultiStepReconstruction
+from representations.reconstruction import EncoderReconstruction
 
 
 MODEL_DICT = {
     'single_step': SingleStep,
     'multi_step': MultiStep,
-    'ms_reconstruction': MultiStepReconstruction,
+    'reconstruction': EncoderReconstruction,
 }
 
 
@@ -68,8 +68,8 @@ def create_models(cfg: DictConfig, obs_shape, act_shape, single_step_path=None):
 
 def initialize_dependant_models(models):
     for model_name, model in models.items():
-        if (model_name == "ms_reconstruction"):
-            model.share_dependant_models(models["single_step"])
+        if (model_name == "reconstruction"):
+            # model.share_dependant_models(models["single_step"])
             continue
         model.share_dependant_models(models)
     return models
@@ -135,9 +135,10 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
     if train_step % cfg.img_log_freq == 0:
         for model_name, model in models.items():
             obs = samples["obs"][0]
-            if (model_name == 'ms_reconstruction'):
+            if (model_name == 'reconstruction'):
                 obs_x = torch.as_tensor(np.expand_dims(obs, axis=0), device="cuda")
-                obs_encoded = models["single_step"].encoder(obs_x).detach()
+                # obs_encoded = models["single_step"].encoder(obs_x).detach()
+                obs_encoded = models["reconstruction"].encoder(obs_x).detach()
                 decoder = model.decoder_model
 
                 reconstructed_obs = (
@@ -177,9 +178,17 @@ def main(cfg: DictConfig):
 
     else:
         models = create_models(cfg, obs_shape, act_shape, single_step_path=cfg.ss_path)
+
+        train(cfg, dataset, models, train=["reconstruction"])
+
+        return # ONLY CARE ABOUT RECON with AUTO-ENCODER
+
+
         models = initialize_dependant_models(models)
 
-        # train(cfg, dataset, models, train=["ms_reconstruction"])
+        train(cfg, dataset, models, train=["reconstruction"])
+
+        return
 
         # train the multistep encoder
         train(cfg, dataset, models, train=["multi_step"])
@@ -187,7 +196,7 @@ def main(cfg: DictConfig):
         return # STOPS TRAINING FOR RECON
 
         # train the multistep encoder reconstruction model
-        train(cfg, dataset, models, train=["ms_reconstruction"])
+        train(cfg, dataset, models, train=["reconstruction"])
 
         if not cfg.wandb:
             obs = dataset["obs"][np.random.randint(len(dataset["obs"]))]
