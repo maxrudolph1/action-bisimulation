@@ -102,7 +102,7 @@ def layered_heatmaps(original, reconstruction, log_prefix):
 
         ax1 = axes[0]
         im1 = ax1.imshow(original[layer], cmap='viridis')
-        ax1.set_title(f"{log_prefix} Original Layer {layer+1}", fontsize=14)
+        ax1.set_title(f"Original Layer {layer+1}", fontsize=14)
         plt.colorbar(im1, ax=ax1)
         # Annotate values on heatmap
         for (i, j), val in np.ndenumerate(original[layer]):
@@ -110,7 +110,7 @@ def layered_heatmaps(original, reconstruction, log_prefix):
 
         ax2 = axes[1]
         im2 = ax2.imshow(reconstruction[layer], cmap='plasma')
-        ax2.set_title(f"{log_prefix} Reconstructed Layer {layer+1}")
+        ax2.set_title(f"Reconstructed Layer {layer+1}")
         plt.colorbar(im2, ax=ax2)
         # Annotate values on heatmap
         for (i, j), val in np.ndenumerate(reconstruction[layer]):
@@ -138,6 +138,7 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
             if (model_name == 'reconstruction'):
                 obs_x = torch.as_tensor(np.expand_dims(obs, axis=0), device="cuda")
                 # obs_encoded = models["single_step"].encoder(obs_x).detach()
+                obs_x = obs_x[:, 1, :, :].unsqueeze(1).repeat(1, 3, 1, 1)
                 obs_encoded = models["reconstruction"].encoder(obs_x).detach()
                 decoder = model.decoder_model
 
@@ -146,6 +147,11 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
                         .unsqueeze(0).squeeze(0).detach().cpu().numpy()
                 )
                 reconstructed_obs = reconstructed_obs[0]
+
+				# NOTE: THIS IS ONLY FOR TESTING THE SAME AGENT SPACE TRAINING
+                obs = obs[1, :, :]
+                obs = np.expand_dims(obs, axis=0)
+                obs = np.repeat(obs, 3, axis=0)
 
                 layered_heatmaps(obs, reconstructed_obs, "Original_vs_Reconstructed")
 
