@@ -17,7 +17,7 @@ class Navigate2D(gym.Env):
         maze=False,
         grid_size=20,
         obstacle_diameter=2,
-        min_goal_dist=7,
+        min_goal_dist=1,
         max_timesteps=50,
         hard_coded_obs=False,
         obstacle_distance_metric=False,
@@ -96,8 +96,6 @@ class Navigate2D(gym.Env):
                 goal_x = goal[0] - self.r_obs
                 goal_y = goal[1] - self.r_obs
                 grid[0, goal_x:(goal_x+self.r_obs), goal_y:(goal_y+self.r_obs)] = 0.0
-            
-
             
 
             self.obstacles = obs
