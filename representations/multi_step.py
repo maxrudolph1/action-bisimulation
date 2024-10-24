@@ -47,6 +47,8 @@ class MultiStep(torch.nn.Module):
 
         self.obs_shape = obs_shape
         self.act_shape = act_shape
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.gamma = gamma
         self.tau = tau
         self.ss_encoder = ss_encoder
@@ -63,19 +65,19 @@ class MultiStep(torch.nn.Module):
 
         self.encoder_optimizer = torch.optim.Adam(
             list(self.encoder.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay,
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
         )
 
         self.forward_model_optimizer = torch.optim.Adam(
             list(self.forward_model.parameters()),
-            lr=learning_rate,
-            weight_decay= weight_decay,
+            lr=self.learning_rate,
+            weight_decay= self.weight_decay,
         )
 
         self.inverse_model_optimizer = torch.optim.Adam(
             list(self.inverse_model.parameters()),
-            lr=learning_rate,
+            lr=self.learning_rate,
         )
 
         self.target_encoder = deepcopy(self.encoder).cuda()
@@ -86,6 +88,20 @@ class MultiStep(torch.nn.Module):
         self.latent_forward_prediction_sum = 0.0
         self.steps_counter = 0
 
+        print("USE_STATES_WITH_SAME_ACTION is", self.use_states_with_same_action)
+
+        self.prev_act = None
+
+    def get_hyperparameters(self):
+        return {
+            "learning_rate": self.learning_rate,
+            "weight_decay": self.weight_decay,
+            "gamma": self.gamma,
+            "tau": self.tau,
+            "sync_freq": self.sync_freq,
+            "use_states_with_same_action": self.use_states_with_same_action,
+            "multi_step_forward_loss": self.multi_step_forward_loss,
+        }
 
     # def batch_forward_model(self, obs, act):
     #     actions = torch.tensor([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=int).cuda()
@@ -110,8 +126,9 @@ class MultiStep(torch.nn.Module):
         obs_x = torch.as_tensor(batch["obs"], device="cuda")  # observation ( x )
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
         act = torch.as_tensor(batch["action"], device="cuda") # action taken at time step ( a_x )
-        # get action at next observation
         # breakpoint()
+        if self.prev_act is None:
+            self.prev_act = torch.zeros_like(act)
 
         # we shuffle the observations to get a random other observation, may need to change this later because the sampling is biased.
         comp_idxs = np.random.permutation(np.arange(obs_x.shape[0]))
@@ -154,8 +171,11 @@ class MultiStep(torch.nn.Module):
         # optimize latent forward model
         if not self.use_states_with_same_action:
             self.forward_model_optimizer.zero_grad()
-            latent_forward_prediction = self.forward_model(ox_encoded_target.detach(), act)
-            latent_forward_prediction_nact = self.forward_model(ox_encoded_target.detach(), act) # forward model prediction with next action
+            latent_forward_prediction = self.forward_model(ox_encoded_online.detach(), act)
+            # latent_forward_prediction_pact = self.forward_model(ox_encoded_online.detach(), self.prev_act) # forward model prediction with next action
+            latent_forward_prediction_pact = self.forward_model(oy_encoded_online.detach(), act)
+
+            self.prev_act = act.detach()
 
             # NOTE: For logging
             ox_encoded_target_norm = np.linalg.norm(ox_encoded_target.detach().cpu())
@@ -166,6 +186,7 @@ class MultiStep(torch.nn.Module):
             oxn_encoded_online_norm = np.linalg.norm(oxn_encoded_online.detach().cpu())
             diff_ox_oxn_online_norm = np.linalg.norm(ox_encoded_online.detach().cpu() - oxn_encoded_online.detach().cpu())
 
+            diff_act_latent_forward_pred = np.linalg.norm(latent_forward_prediction.detach().cpu() - latent_forward_prediction_pact.detach().cpu())
             latent_forward_prediction_norm = np.linalg.norm(latent_forward_prediction.detach().cpu())
 
             self.oxn_encoded_target_sum += oxn_encoded_target_norm
@@ -201,6 +222,7 @@ class MultiStep(torch.nn.Module):
                 "inverse_acc": (inverse_model_pred.argmax(dim=1) == act).float().mean().detach().item(),
                 "inverse_loss": inverse_model_loss.detach().item(),
                 # "inverse_acc_forward": (inverse_model_pred_forward_model_enc.argmax(dim=1) == act).float().mean().detach().item(),
+
                 "ox encoded target magnitude": ox_encoded_target_norm,
                 "oxn encoded target magnitude": oxn_encoded_target_norm,
                 "ox encoded online magnitude": ox_encoded_online_norm,
@@ -208,6 +230,7 @@ class MultiStep(torch.nn.Module):
 
                 "diff_ox_oxn_encoded_target_norm": diff_ox_oxn_encoded_target_norm,
                 "diff_ox_oxn_online_norm": diff_ox_oxn_online_norm,
+                "diff_act_latent_forward_pred": diff_act_latent_forward_pred,
 
                 "latent_forward_prediction magnitude": latent_forward_prediction_norm,
 
@@ -300,14 +323,14 @@ class MultiStep(torch.nn.Module):
             "base_case_distance": ss_distances.float().mean().detach().item(),
             "cur_ms_distance": cur_ms_distance_size,
             "forward_pred_ms_distance": target_ms_distance_size, # wasserstein expectation
-            "gamma": self.gamma, # plotting shouldnt change
 
             # add plotting for forward dynamics loss
             # "forward_loss": forward_model_next_loss,
             # "encoded target magnitude": oxn_encoded_target_norm,
             # "latent_forward_prediction magnitude": latent_forward_prediction_norm,
         }
-        log.update(forward_loss_logs)
+        if not self.use_states_with_same_action:
+            log.update(forward_loss_logs)
         return log
 
 

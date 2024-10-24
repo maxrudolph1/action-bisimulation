@@ -13,7 +13,7 @@ class GenEncoder(torch.nn.Module):
         super().__init__()
         self.encoder = gen_nets.GeneralConv2DEncoder(obs_dim, normalized=False, **kwargs)
         self.output_dim = self.encoder.output_dim
-        
+
     def forward(self, obs):
         return self.encoder(obs)
 
@@ -26,7 +26,7 @@ class GenInverseDynamics(torch.nn.Module):
 
     def forward(self, embed, embed_next):
         return self.fc(torch.cat([embed, embed_next], dim=-1))
-    
+
 class GenActionSetPredictor(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, ksteps=1, **kwargs):
         super().__init__()
@@ -67,7 +67,7 @@ class GenForwardDynamics(torch.nn.Module):
         self.fc = gen_nets.LinearNetwork(
             embed_dim + action_dim, embed_dim, **kwargs
         )
-        
+
     def forward(self, embed, action):
         x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
         return self.fc(x)
@@ -86,7 +86,7 @@ class GenDQN(torch.nn.Module):
 class GenDQNHER(torch.nn.Module):
     def __init__(self, state_shape, action_dim=4, atoms=1, split_obs=False, device='cpu', encoder_path='', **kwargs):
         super().__init__()
-        
+
         # self.encoder = GoallessEncoder(state_shape)
         if not (encoder_path is None) and (len(encoder_path) > 0):
             self.encoder=torch.load(encoder_path).encoder
@@ -97,7 +97,7 @@ class GenDQNHER(torch.nn.Module):
         self.action_dim = action_dim
         self.device = device
         self.split_obs = split_obs
-        
+
     def forward(self, obs, state=None, info={}):
 
         obs = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
@@ -116,11 +116,11 @@ class GenDQNFull(torch.nn.Module):
         self.atoms = atoms
         self.action_dim = action_dim
         self.device = device
-        
+
     def forward(self, obs, state=None, info={}):
-        
+
         obs = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
-        
+
         embed = self.encoder(obs)
         if self.atoms == 1:
             logits = self.dqn(embed).view(-1,self.action_dim)
@@ -152,6 +152,7 @@ class GenDecoder2D(torch.nn.Module):
         c, h, w = obs_dim
         self.kwargs = kwargs
         self.use_grid = 'use_grid' in kwargs and kwargs['use_grid']
+        print (f"USE GRID: {self.use_grid}")
         self.grid = (
             torch.stack(
                 torch.meshgrid(
@@ -166,7 +167,7 @@ class GenDecoder2D(torch.nn.Module):
 
         self.conv = torch.nn.Sequential(
             torch.nn.Conv2d(
-                in_channels=embed_dim + 2 if 'use_grid' in kwargs and kwargs['use_grid'] else embed_dim,
+                in_channels=embed_dim + 2 if self.use_grid else embed_dim,
                 out_channels=256,
                 kernel_size=1,
                 stride=1,

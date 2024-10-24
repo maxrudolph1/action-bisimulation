@@ -5,4 +5,4 @@
 
 # NOTE: SINGLE STEP RECON
 python main.py algos='[single_step, reconstruction]' wandb=True save_ss=False
-# python main.py algos='[single_step, reconstruction]' wandb=False save_ss=False
+# python main.py algos='[single_step, reconstruction]' wandb=True save_ss=False

@@ -1,1 +1,16 @@
-python main.py algos='[multi_step, single_step]' wandb=True save_ss=False
+# python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True wandb=True save_ss=False
+# python main.py algos='[multi_step, single_step]' algos.multi_step.gamma=0.9 wandb=True save_ss=False
+# python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" wandb=True save_ss=False
+
+# gamma sweep
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.99 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.98 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.97 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.95 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.93 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.9 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.8 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.75 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.7 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.6 wandb=True save_ss=False
+python main.py algos='[multi_step, single_step]' algos.multi_step.ss_train_warmup_epochs=0 algos.multi_step.use_states_with_same_action=True algos.multi_step.multi_step_forward_loss="l1" algos.multi_step.gamma=0.5 wandb=True save_ss=False

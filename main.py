@@ -51,10 +51,12 @@ def create_models(cfg: DictConfig, obs_shape, act_shape, single_step_path=None):
     algo_cfgs = cfg.algos
     model_names = list(algo_cfgs.keys())
     models = {}
+    hyperparameters = {}
 
     for model_name in model_names:
         model_cfg = algo_cfgs[model_name]
         model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, encoder_cfg=cfg.encoder, forward_cfg=cfg.forward, inverse_cfg=cfg.inverse, **model_cfg,)
+        hyperparameters[model_name] = model.get_hyperparameters()
 
         if model_name == 'single_step' and single_step_path:
             print(
@@ -63,13 +65,13 @@ def create_models(cfg: DictConfig, obs_shape, act_shape, single_step_path=None):
             model.load_state_dict(torch.load(single_step_path))
             model.eval()
         models[model_name] = model
-    return models
+    return models, hyperparameters
 
 
 def initialize_dependant_models(models):
     for model_name, model in models.items():
         if (model_name == "reconstruction"):
-            # model.share_dependant_models(models["single_step"])
+            model.share_dependant_models(models["single_step"])
             continue
         model.share_dependant_models(models)
     return models
@@ -153,6 +155,8 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
                 obs = np.expand_dims(obs, axis=0)
                 obs = np.repeat(obs, 3, axis=0)
 
+                # obs = (obs + 1) / 2  # Now values are 0 and 1
+
                 layered_heatmaps(obs, reconstructed_obs, "Original_vs_Reconstructed")
 
             else:
@@ -163,15 +167,15 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
 def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
 
-    if cfg.wandb:
-        wandb.init(entity='evan-kuo-edu', project="nav2d", config={})
 
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
 
     dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
     if (cfg.save_ss):
-        models = create_models(cfg, obs_shape, act_shape)
+        models, hyperparameters = create_models(cfg, obs_shape, act_shape)
+        if (cfg.wandb):
+            wandb.init(entity='evan-kuo-edu', project="nav2d", config=hyperparameters)
         models = initialize_dependant_models(models)
 
         train(cfg, dataset, models, train=["single_step"])
@@ -183,31 +187,21 @@ def main(cfg: DictConfig):
             save_heatmap(cfg, models["single_step"].encoder, obs, "single_step.png")
 
     else:
-        models = create_models(cfg, obs_shape, act_shape, single_step_path=cfg.ss_path)
-
-        train(cfg, dataset, models, train=["reconstruction"])
-
-        return # ONLY CARE ABOUT RECON with AUTO-ENCODER
-
-
+        models, hyperparameters = create_models(cfg, obs_shape, act_shape, single_step_path=cfg.ss_path)
+        if (cfg.wandb):
+            wandb.init(entity='evan-kuo-edu', project="nav2d", config=hyperparameters)
         models = initialize_dependant_models(models)
-
-        train(cfg, dataset, models, train=["reconstruction"])
-
-        return
 
         # train the multistep encoder
         train(cfg, dataset, models, train=["multi_step"])
 
-        return # STOPS TRAINING FOR RECON
-
         # train the multistep encoder reconstruction model
-        train(cfg, dataset, models, train=["reconstruction"])
+        # train(cfg, dataset, models, train=["reconstruction"])
 
-        if not cfg.wandb:
-            obs = dataset["obs"][np.random.randint(len(dataset["obs"]))]
-            save_heatmap(cfg, models["single_step"].encoder, obs, "single_step.png")
-            save_heatmap(cfg, models["multi_step"].encoder, obs, "multi_step.png")
+        # if not cfg.wandb:
+        #     obs = dataset["obs"][np.random.randint(len(dataset["obs"]))]
+        #     save_heatmap(cfg, models["single_step"].encoder, obs, "single_step.png")
+        #     save_heatmap(cfg, models["multi_step"].encoder, obs, "multi_step.png")
 
 def train(cfg: DictConfig, dataset, models, train=[]):
     print(f'TRAINING NOW {train}')

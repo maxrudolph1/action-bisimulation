@@ -20,6 +20,8 @@ class SingleStep(torch.nn.Module):
         forward_type = list(forward_cfg.keys())[0]
         inverse_type = list(inverse_cfg.keys())[0]
 
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.encoder = gen_model_nets.GenEncoder(obs_shape, **encoder_cfg[encoder_type]).cuda()
         self.embed_dim = self.encoder.output_dim
         self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, **forward_cfg[forward_type]).cuda()
@@ -29,8 +31,8 @@ class SingleStep(torch.nn.Module):
             list(self.encoder.parameters())
             + list(self.forward_model.parameters())
             + list(self.inverse_model.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay,
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
         )
 
         self.forward_model_weight = forward_weight
@@ -41,6 +43,17 @@ class SingleStep(torch.nn.Module):
 
     def share_dependant_models(self, models):
         pass
+
+    def get_hyperparameters(self):
+        return {
+            "learning_rate": self.learning_rate,
+            "weight_decay": self.weight_decay,
+            "forward_weight": self.forward_model_weight,
+            "l1_penalty": self.l1_penalty,
+            "dynamic_l1_penalty": self.dynamic_l1_penalty,
+            "train_stop_epochs": self.train_stop_epochs,
+            "embed_dim": self.embed_dim,
+        }
 
     def train_step(self, batch, epoch):
         if epoch >= self.train_stop_epochs:

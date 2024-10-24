@@ -6,3 +6,5 @@ multi_step:
   learning_rate: 0.0001
   resume_path: null
   ss_train_warmup_epochs: 1
+  use_states_with_same_action: False
+  multi_step_forward_loss: "l2"

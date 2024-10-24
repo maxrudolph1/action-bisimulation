@@ -13,7 +13,8 @@ class EncoderReconstruction(torch.nn.Module):
         encoder_cfg=None,
         forward_cfg=None,
         inverse_cfg=None,
-        learning_rate=0.01,
+        # learning_rate=0.01,
+        learning_rate=1e-3,
         weight_decay=1e-5,
         tau=0.95,
         sync_freq=1,
@@ -26,43 +27,72 @@ class EncoderReconstruction(torch.nn.Module):
         self.steps_until_sync = 0
         self.sync_freq = sync_freq
 
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         # self.decoder_model = gen_model_nets.GenDecoder2D(obs_shape[0], obs_shape).cuda()
-        self.encoder = gen_model_nets.GenEncoder(obs_shape).cuda()
-        self.decoder_model = gen_model_nets.GenDecoder2D(1152, obs_shape).cuda()
+        # self.encoder = gen_model_nets.GenEncoder(obs_shape).cuda()
+        self.decoder_model = gen_model_nets.GenDecoder2D(1152, obs_shape, use_grid=True).cuda()
 
-        # self.decoder_optimizer = torch.optim.Adam(
-        #     list(self.decoder_model.parameters()),
+        self.decoder_optimizer = torch.optim.Adam(
+            list(self.decoder_model.parameters()),
+            lr=learning_rate,
+            weight_decay=self.weight_decay,
+        )
+
+        # Adam optimizer for autoencoder
+        # self.optimizer = torch.optim.Adam(
+        #     list(self.encoder.parameters()) + list(self.decoder_model.parameters()),
         #     lr=learning_rate,
-        #     weight_decay=weight_decay,
-        #     # weight_decay=0,
+        #     weight_decay=self.weight_decay,
         # )
 
-        self.optimizer = torch.optim.Adam(
-            list(self.encoder.parameters()) + list(self.decoder_model.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay,
-        )
+		# Autoencoder AdamW
+        # self.optimizer = torch.optim.AdamW(
+        #     list(self.encoder.parameters()) + list(self.decoder_model.parameters()),
+        #     lr=learning_rate,
+        #     weight_decay=self.weight_decay,
+        # )
+
+
         # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.decoder_optimizer, factor=0.9, patience=12)
 
-        # self.encoder = None
+        self.encoder = None
+
+    def get_hyperparameters(self):
+        return {
+            "learning_rate": self.learning_rate,
+            "weight_decay": self.weight_decay,
+        }
 
     def share_dependant_models(self, model):
-        # self.encoder = model.encoder
+        self.encoder = model.encoder
         pass
 
     def train_step(self, batch, epoch):
         # NOTE: TEST ONLY TRAINING ONE LAYER
         obs_x = torch.as_tensor(batch["obs"], device="cuda")
-        obs_x = obs_x[:, 1, :, :].unsqueeze(1).repeat(1, 3, 1, 1)
 
-        ox_encoded_online = self.encoder(obs_x)
+        # Convert data from -1 and 1 to 0 and 1
+        # obs_x = (obs_x + 1) / 2  # Now values are 0 and 1
+
+        obs_x = obs_x[:, 1, :, :].unsqueeze(1).repeat(1, 3, 1, 1) # Only agent layer
+
+        ox_encoded_online = self.encoder(obs_x).detach() # detach for running singlestep
         obs_x_reconstructed = self.decoder_model(ox_encoded_online)
 
-        decoder_loss = F.mse_loss(obs_x_reconstructed, obs_x)
+        # decoder_loss = F.mse_loss(obs_x_reconstructed[:, 1, :, :], obs_x[:, 1, :, :])
+        decoder_loss = F.l1_loss(obs_x_reconstructed[:, 1, :, :], obs_x[:, 1, :, :])
 
-        self.optimizer.zero_grad()
+        # Testing loss functions
+        # decoder_loss = F.binary_cross_entropy_with_logits(obs_x_reconstructed, obs_x)
+
+        # pos_weight = torch.tensor([224]).to("cuda") # Calculate weights
+        # criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight) # Use BCEWithLogitsLoss with pos_weight
+        # decoder_loss = criterion(obs_x_reconstructed, obs_x)
+
+        self.decoder_optimizer.zero_grad()
         decoder_loss.backward()
-        self.optimizer.step()
+        self.decoder_optimizer.step()
 
         log = {
             "decoder_loss": decoder_loss.detach().item(),
@@ -133,13 +163,6 @@ class EncoderReconstruction(torch.nn.Module):
         obs_x_reconstructed = self.decoder_model(ox_encoded_online)
 
         decoder_loss = F.mse_loss(obs_x_reconstructed, obs_x_norm) # change so proportion from all channels
-
-        # TODO: NOTE TO LOOK AT FOR THIS
-        # check if the loss function works by doing autoencoder with loss function
-        # likely neeed normalization on the mse loss
-        # - suspicion is normalizaing across all the pixels
-        # - might be normalizing over every pixel across the channels
-        # - if autoencoder works, then might be issue with tuning single step and the normalization for that
 
         # self.decoder_optimizer.zero_grad()
         # decoder_loss.backward()
