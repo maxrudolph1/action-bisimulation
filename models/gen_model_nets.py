@@ -154,11 +154,11 @@ class GenSideTuner(torch.nn.Module):
 
 
 class GenDecoder2D(torch.nn.Module):
-    def __init__(self, embed_dim, obs_dim, **kwargs):
+    def __init__(self, embed_dim, obs_dim, cfg):
         super().__init__()
         c, h, w = obs_dim
-        self.kwargs = kwargs
-        self.use_grid = 'use_grid' in kwargs and kwargs['use_grid']
+        self.cfg = cfg
+        self.use_grid = True #'use_grid' in cfg and cfg['use_grid']
         self.grid = (
             torch.stack(
                 torch.meshgrid(
@@ -173,7 +173,7 @@ class GenDecoder2D(torch.nn.Module):
 
         self.conv = torch.nn.Sequential(
             torch.nn.Conv2d(
-                in_channels=embed_dim + 2 if 'use_grid' in kwargs and kwargs['use_grid'] else embed_dim,
+                in_channels=embed_dim + 2 if self.use_grid else embed_dim,
                 out_channels=256,
                 kernel_size=1,
                 stride=1,
@@ -224,7 +224,6 @@ class GenDecoder2D(torch.nn.Module):
         )
             
         if self.use_grid:
-            # combined = torch.cat([obs, grid_expand], dim=1)
             combined = torch.cat([x_expand, grid_expand], dim=1)
         else:
             combined = x_expand

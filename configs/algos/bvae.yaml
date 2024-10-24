@@ -1,0 +1,4 @@
+bvae:
+  beta: 0.01
+  learning_rate: 0.0001
+  use_grid: True

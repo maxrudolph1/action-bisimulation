@@ -21,10 +21,11 @@ from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
+from representations.bvae import BetaVariationalAutoencoder
 import os
 
 
-MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep}
+MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder}
 
 def load_dataset(dataset_path):
     dataset = h5py.File(dataset_path, "r")
@@ -47,7 +48,7 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
     
     for model_name in model_names:
         model_cfg = algo_cfgs[model_name]
-        model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, encoder_cfg=cfg.encoder, forward_cfg=cfg.forward, inverse_cfg=cfg.inverse, **model_cfg,)
+        model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, cfg=cfg, **model_cfg,)
         models[model_name] = model
     return models
         
@@ -67,6 +68,13 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
             obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
             img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
             wandb.log({f"{model_name}/heatmap": img}, step=train_step)
+
+        if model_name == "bvae":
+            obs = torch.tensor(samples["obs"][0])
+            obs_recon = model.decoder(model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
+            disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
+            img = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0,2), disp_obs], axis=1))
+            wandb.log({f"{model_name}/reconstruction": img}, step=train_step)
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
