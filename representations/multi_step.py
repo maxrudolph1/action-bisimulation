@@ -15,59 +15,52 @@ from . import utils
 
 class MultiStep(torch.nn.Module):
     def __init__(
-        self, obs_shape, act_shape, encoder_cfg, forward_cfg, inverse_cfg,
-        ss_encoder=None,
-        learning_rate=None,
-        gamma=0.99, 
-        tau=0.95,
-        sync_freq=1, 
-        weight_decay=1e-5, 
-        multi_step_forward_loss="l1", 
-        **kwargs,
-    ):
+        self, obs_shape, act_shape, cfg, 
+    ): 
         super().__init__()
-        encoder_type = list(encoder_cfg.keys())[0]
-        forward_type = list(forward_cfg.keys())[0]
         
         self.obs_shape = obs_shape
         self.act_shape = act_shape
-        self.gamma = gamma
-        self.tau = tau
+        encoder_cfg = cfg.algos.multi_step.encoder
+        forward_cfg = cfg.algos.multi_step.forward
+        self.gamma = cfg.algos.multi_step.gamma
+        self.tau = cfg.algos.multi_step.tau
         
-        if "base_case_path" in kwargs and kwargs["base_case_path"] is not None:
-            self.ss_encoder = torch.load(kwargs["base_case_path"])['encoder']
+        if cfg.algos.multi_step.get("base_case_path"):
+            self.ss_encoder = torch.load(cfg.algos.multi_step.get("base_case_path"))['encoder']
         else:
             self.ss_encoder = None
                         
-        self.multi_step_forward_loss = multi_step_forward_loss
-        self.use_states_with_same_action = kwargs.get("use_states_with_same_action", False)
+        self.multi_step_forward_loss = cfg.algos.multi_step.multi_step_forward_loss
+        self.use_states_with_same_action = cfg.algos.multi_step.use_states_with_same_action
         self.steps_until_sync = 0
-        self.sync_freq = sync_freq
+        self.sync_freq = cfg.algos.multi_step.sync_freq
         
 
-        if kwargs.get("warm_start_ms_with_ss"):
+        if cfg.algos.multi_step.warm_start_ms_with_ss:
             self.encoder = deepcopy(self.ss_encoder).cuda()
         else:
-            self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg[encoder_type]).cuda() 
+            self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda() 
             
         self.embed_dim = self.encoder.output_dim
-        self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, **forward_cfg[forward_type]).cuda()
+        self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, forward_cfg).cuda()
             
         self.encoder_optimizer = torch.optim.Adam(
             list(self.encoder.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay,
+            lr=cfg.algos.multi_step.learning_rate,
+            weight_decay=cfg.algos.multi_step.weight_decay,
         )
         
         self.forward_model_optimizer = torch.optim.Adam(
             list(self.forward_model.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay,
+            lr=cfg.algos.multi_step.learning_rate,
+            weight_decay=cfg.algos.multi_step.weight_decay,
         )
 
         self.target_encoder = deepcopy(self.encoder).cuda()
-        self.ss_train_warmup_epochs = kwargs.get("ss_train_warmup_epochs")   
-        self.forward_model_steps_per_batch = kwargs.get("forward_model_steps_per_batch")
+        self.ss_train_warmup_epochs = cfg.algos.multi_step.ss_train_warmup_epochs
+        self.forward_model_steps_per_batch = cfg.algos.multi_step.forward_model_steps_per_batch
+        self.reset_forward_model_every = cfg.algos.multi_step.reset_forward_model_every
 
 
     # def batch_forward_model(self, obs, act):
@@ -88,12 +81,16 @@ class MultiStep(torch.nn.Module):
             self.ss_encoder = models.get("single_step").encoder
             
         
-    def train_step(self, batch, epoch):
+    def train_step(self, batch, epoch, train_step):
         if epoch < self.ss_train_warmup_epochs:
             return {}
+        
         obs_x = torch.as_tensor(batch["obs"], device="cuda")  # observation ( x )
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
         act = torch.as_tensor(batch["action"], device="cuda") # action taken at time step ( a_x )
+
+        if train_step % self.reset_forward_model_every == 0 and self.reset_forward_model_every > 0:
+            self.forward_model.reset_weights()
         
         # we shuffle the observations to get a random other observation, may need to change this later because the sampling is biased.
         comp_idxs = np.random.permutation(np.arange(obs_x.shape[0]))

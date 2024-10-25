@@ -9,7 +9,3 @@ img_log_freq: 3000
 
 defaults:
   - algos: single_step
-  - /networks@encoder: cnn
-  - /networks@forward: mlp
-  - /networks@inverse: mlp
-  - /networks@decoder: cnn

@@ -27,10 +27,10 @@ class GenEncoder(torch.nn.Module):
         return z
 
 class GenInverseDynamics(torch.nn.Module):
-    def __init__(self, embed_dim, action_dim, **kwargs):
+    def __init__(self, embed_dim, action_dim, cfg):
         super().__init__()
         self.fc = gen_nets.LinearNetwork(
-            embed_dim * 2, action_dim, **kwargs
+            embed_dim * 2, action_dim, **cfg
         )
 
     def forward(self, embed, embed_next):
@@ -68,18 +68,28 @@ class GenStochasticForwardDynamics(torch.nn.Module):
 
 
 class GenForwardDynamics(torch.nn.Module):
-    def __init__(self, embed_dim, action_dim, **kwargs):
+    def __init__(self, embed_dim, action_dim, cfg):
         super().__init__()
         self.action_dim = action_dim
         layers = []
+        self.activation=cfg['post_activation']
 
         self.fc = gen_nets.LinearNetwork(
-            embed_dim + action_dim, embed_dim, **kwargs
+            embed_dim + action_dim, embed_dim, **cfg
         )
         
     def forward(self, embed, action):
         x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
         return self.fc(x)
+    
+    def reset_weights(self):
+        def init_weights(m):
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_uniform_(m.weight, nonlinearity=self.activation)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+
+        self.apply(init_weights)
 
 
 class GenDQN(torch.nn.Module):

@@ -48,7 +48,7 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
     
     for model_name in model_names:
         model_cfg = algo_cfgs[model_name]
-        model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, cfg=cfg, **model_cfg,)
+        model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, cfg=cfg)
         models[model_name] = model
     return models
         
@@ -108,7 +108,7 @@ def train(cfg: DictConfig, dataset, models):
             sample_ind = np.sort(sample_ind_all[start:end])
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
             for model_name, model in models.items():
-                log = model.train_step(samples, epoch)
+                log = model.train_step(samples, epoch, train_step)
                 wandb_logs[model_name].update(log)
                 
             if cfg.wandb:

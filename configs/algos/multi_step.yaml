@@ -1,13 +1,21 @@
-multi_step:
-  tau: 0.005
-  sync_freq: 1
-  l1_pentaly: 0.001
-  gamma: 0.98
-  learning_rate: 0.0001
-  resume_path: null
-  ss_train_warmup_epochs: 0
-  base_case_path: /u/mrudolph/documents/action-bisimulation/results/2024-10-04_09:45:12/single_step.pt
-  use_states_with_same_action: True
-  forward_model_steps_per_batch: 1
-  warm_start_ms_with_ss: False
-  multi_step_forward_loss: l1 
+# @package algos.multi_step
+name: multi_step
+tau: 0.005
+sync_freq: 1
+l1_pentaly: 0.001
+gamma: 0.98
+learning_rate: 0.0001
+weight_decay: 0.00001
+resume_path: null
+ss_train_warmup_epochs: 0
+base_case_path: /u/mrudolph/documents/action-bisimulation/results/2024-10-04_09:45:12/single_step.pt
+use_states_with_same_action: True
+forward_model_steps_per_batch: 1
+warm_start_ms_with_ss: False
+multi_step_forward_loss: l1 
+reset_forward_model_every: 3000
+
+defaults:
+  - networks/cnn@encoder
+  - networks/mlp@forward
+  - networks/mlp@inverse

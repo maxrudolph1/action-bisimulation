@@ -22,17 +22,14 @@ class BetaVariationalAutoencoder(torch.nn.Module):
         super().__init__()
 
         self.algo_config = cfg.algos.bvae
-        encoder_cfg = cfg.encoder
-        encoder_type = list(encoder_cfg.keys())[0]
+        encoder_cfg = self.algo_config.encoder
         self.learning_rate = self.algo_config.learning_rate
 
-        decoder_cfg = cfg.decoder
-        decoder_type = list(decoder_cfg.keys())[0]
+        decoder_cfg = self.algo_config.decoder
         
         self.obs_shape = obs_shape
-                        
-        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg[encoder_type]).cuda() 
-        self.decoder = gen_model_nets.GenDecoder2D(self.encoder.output_dim, obs_shape,cfg=decoder_cfg[decoder_type]).cuda()
+        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda() 
+        self.decoder = gen_model_nets.GenDecoder2D(self.encoder.output_dim, obs_shape,cfg=decoder_cfg).cuda()
         self.embed_dim = self.encoder.output_dim
         
         self.optimizer = torch.optim.Adam(
@@ -45,7 +42,7 @@ class BetaVariationalAutoencoder(torch.nn.Module):
         pass
             
         
-    def train_step(self, batch, epoch):
+    def train_step(self, batch, epoch, train_step):
         obs_x = torch.as_tensor(batch["obs"], device="cuda")  # observation ( x )
         z = self.encoder(obs_x) # encoder z = phi(x)
 

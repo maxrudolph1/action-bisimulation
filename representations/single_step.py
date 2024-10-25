@@ -13,35 +13,38 @@ from . import utils
 
 class SingleStep(torch.nn.Module):
     def __init__(
-        self, obs_shape, act_shape, encoder_cfg, forward_cfg, inverse_cfg, learning_rate=0.01, forward_weight=0.01, l1_penalty=0.0, weight_decay=1e-5, **kwargs,
+        self, obs_shape, act_shape, cfg,
     ):
         super().__init__()
-        encoder_type = list(encoder_cfg.keys())[0]
-        forward_type = list(forward_cfg.keys())[0]
-        inverse_type = list(inverse_cfg.keys())[0]
+        encoder_cfg = cfg.algos.single_step.encoder
+        forward_cfg = cfg.algos.single_step.forward
+        inverse_cfg = cfg.algos.single_step.inverse
 
-        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg[encoder_type]).cuda()
+        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
         self.embed_dim = self.encoder.output_dim
-        self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, **forward_cfg[forward_type]).cuda()
-        self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape, **inverse_cfg[inverse_type]).cuda()
+        self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, forward_cfg).cuda()
+        self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape, inverse_cfg).cuda()
+
+        self.learning_rate = cfg.algos.single_step.learning_rate
+        self.weight_decay = cfg.algos.single_step.weight_decay
+        self.forward_weight = cfg.algos.single_step.forward_weight
+        self.l1_penalty = cfg.algos.single_step.l1_penalty
+        self.dynamic_l1_penalty = cfg.algos.single_step.dynamic_l1_penalty
+        self.train_stop_epochs = cfg.algos.single_step.train_stop_epochs
+
 
         self.optimizer = torch.optim.Adam(
             list(self.encoder.parameters())
             + list(self.forward_model.parameters())
             + list(self.inverse_model.parameters()),
-            lr=learning_rate,
-            weight_decay=weight_decay,
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
         )
-
-        self.forward_model_weight = forward_weight
-        self.l1_penalty = l1_penalty
-        self.dynamic_l1_penalty = kwargs.get("dynamic_l1_penalty", False)
-        self.train_stop_epochs = kwargs.get("train_stop_epochs", 1e6)
 
     def share_dependant_models(self, models):
         pass
     
-    def train_step(self, batch, epoch):
+    def train_step(self, batch, epoch, train_step):
         if epoch >= self.train_stop_epochs:
             return {}
         obs = torch.as_tensor(batch["obs"], device="cuda")
@@ -50,7 +53,7 @@ class SingleStep(torch.nn.Module):
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
 
-        if self.forward_model_weight > 0:
+        if self.forward_weight > 0:
             forward_model_loss = F.mse_loss(
                 self.forward_model(o_encoded, act),
                 on_encoded,
@@ -83,7 +86,7 @@ class SingleStep(torch.nn.Module):
             cur_l1_penalty = self.l1_penalty
 
         l1_loss = cur_l1_penalty * l1_loss
-        forward_model_loss = self.forward_model_weight * forward_model_loss
+        forward_model_loss = self.forward_weight * forward_model_loss
         total_loss = (
             forward_model_loss
             + l1_loss

@@ -1,10 +1,15 @@
-single_step:
-  forward_weight: 0
-  l1_penalty: 0.001
-  learning_rate: 0.0001
-  weight_decay: 0.0
-  resume_path: ''
-  control_type: inverse_dynamics
-  train_stop_epochs: 1
-  use_gen_nets: True
-  dynamic_l1_penalty: True
+# @package algos.single_step
+name: single_step
+forward_weight: 0
+l1_penalty: 0.001
+learning_rate: 0.0001
+weight_decay: 0.0
+resume_path: ''
+control_type: inverse_dynamics
+train_stop_epochs: 1
+use_gen_nets: True
+dynamic_l1_penalty: True
+defaults:
+  - networks/cnn@encoder
+  - networks/mlp@forward
+  - networks/mlp@inverse

@@ -1,6 +1,0 @@
-cnn:
-  hidden_layers: [64,64,64,96,96,128]
-  num_pooling: 2
-  acti: relu
-  use_layer_norm: False
-  output_dim: 64
