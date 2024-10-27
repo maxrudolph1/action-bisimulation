@@ -132,13 +132,13 @@ class MultiStep(torch.nn.Module):
 
         # optimize latent forward model
         for _ in range(self.forward_model_steps_per_batch):
-            self.forward_model_optimizer.zero_grad()
             latent_forward_prediction = self.forward_model(ox_encoded_target.detach(), act)
 
             forward_model_next_loss = F.smooth_l1_loss(
                 latent_forward_prediction,
                 oxn_encoded_target.detach(),
             )   
+            self.forward_model_optimizer.zero_grad()
             forward_model_next_loss.backward()
             self.forward_model_optimizer.step()
 
@@ -158,7 +158,8 @@ class MultiStep(torch.nn.Module):
                     .unsqueeze(0)
                     .expand(ox_encoded_target.shape[0], -1),
                 )  # shape (n, 4, e)
-                
+                # pred_ox_encoded = self.forward_model(ox_encoded_target, act)
+                # pred_oy_encoded = self.forward_model(oy_encoded_target, act)
                 pred_oy_encoded = self.forward_model(
                     oy_encoded_target.unsqueeze(1).expand(-1, self.act_shape, -1),
                     torch.arange(self.act_shape, device="cuda")
