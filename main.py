@@ -4,7 +4,7 @@ import shutil
 import sys
 from argparse import ArgumentParser
 from collections import deque
-import time 
+import time
 import h5py
 import tqdm
 from matplotlib import cm
@@ -31,12 +31,12 @@ def load_dataset(dataset_path):
     dataset = h5py.File(dataset_path, "r")
     dataset_keys = []
     dataset.visit(lambda key: dataset_keys.append(key) if isinstance(dataset[key], h5py.Dataset) else None)
-    
+
     mem_dataset = {}
     for key in dataset_keys:
         mem_dataset[key] = dataset[key][:]
     dataset = mem_dataset
-    
+
     obs_shape = dataset["obs"][0].shape
     act_shape = dataset["action"].max() + 1
     return dataset, obs_shape, act_shape
@@ -45,13 +45,13 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
     algo_cfgs = cfg.algos
     model_names = list(algo_cfgs.keys())
     models = {}
-    
+
     for model_name in model_names:
         model_cfg = algo_cfgs[model_name]
         model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, cfg=cfg)
         models[model_name] = model
     return models
-        
+
 def initialize_dependant_models(models):
     for model_name, model in models.items():
         model.share_dependant_models(models)
@@ -79,25 +79,25 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        
-    if cfg.wandb: 
-        wandb.init(entity='maxrudolph', project="nav2d", config=OmegaConf.to_container(cfg),)
-        
+
+    if cfg.wandb:
+        wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
+
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
-    
+
     dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
     models = create_models(cfg, obs_shape, act_shape)
     models = initialize_dependant_models(models)
-    
+
     train(cfg, dataset, models)
-    
-    
+
+
 def train(cfg: DictConfig, dataset, models):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
     train_step = 0
-    
+
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
         sample_ind_next = np.random.permutation(len(dataset["obs"]))
@@ -110,19 +110,19 @@ def train(cfg: DictConfig, dataset, models):
             for model_name, model in models.items():
                 log = model.train_step(samples, epoch, train_step)
                 wandb_logs[model_name].update(log)
-                
+
             if cfg.wandb:
                 log_to_wandb(cfg, models, wandb_logs, samples, train_step)
-                
-            train_step += 1        
-            
-    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")    
+
+            train_step += 1
+
+    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     logdir = os.path.join(cfg.logdir, time_str)
     os.makedirs(logdir)
     for model_name, model in models.items():
         model.save(logdir + f"/{model_name}.pt")
-                
-            
+
+
 
 if __name__=="__main__":
     main()
