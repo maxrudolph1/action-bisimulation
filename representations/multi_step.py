@@ -118,6 +118,7 @@ class MultiStep(torch.nn.Module):
 
     def share_dependant_models(self, models):
         self.ss_encoder = models.get("single_step").encoder
+        self.encoder = deepcopy(self.ss_encoder).cuda()
 
     def train_step(self, batch, epoch):
         if epoch < self.ss_train_warmup_epochs:
