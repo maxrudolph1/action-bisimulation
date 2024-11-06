@@ -10,12 +10,12 @@ resume_path: null
 ss_train_warmup_epochs: 0
 # base_case_path: /u/mrudolph/documents/action-bisimulation/results/2024-10-04_09:45:12/single_step.pt
 base_case_path: '/nfs/homes/bisim/ekuo/master-action-bisimulation/results/2024-10-28_05:45:27/single_step.pt'
-use_states_with_same_action: True
-forward_model_steps_per_batch: 1
+use_states_with_same_action: False # behavioral
+train_detached_forward_model: False
+forward_model_steps_per_batch: 1 # lagging behind is already implemented
 warm_start_ms_with_ss: False
 multi_step_forward_loss: l1
-# reset_forward_model_every: 3000
-reset_forward_model_every: 1e6
+reset_forward_model_every: 3000
 
 defaults:
   - networks/cnn@encoder

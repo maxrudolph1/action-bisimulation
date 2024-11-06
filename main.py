@@ -69,12 +69,17 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
             img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
             wandb.log({f"{model_name}/heatmap": img}, step=train_step)
 
-        if model_name == "bvae":
-            obs = torch.tensor(samples["obs"][0])
-            obs_recon = model.decoder(model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
-            disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
-            img = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0,2), disp_obs], axis=1))
-            wandb.log({f"{model_name}/reconstruction": img}, step=train_step)
+            if model_name == "bvae":
+                obs = torch.tensor(samples["obs"][0])
+                if (model.decode_forward):
+                    act = torch.tensor(samples["action"][0])
+                    obs_recon = model.decoder(model.forward_model(model.encoder(obs[None].cuda()), act[None].cuda())).squeeze().detach().cpu().numpy()
+                    disp_obs = np.swapaxes(samples["obs_next"][0], 0, 2)
+                else:
+                    obs_recon = model.decoder(model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
+                    disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
+                img = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0,2), disp_obs], axis=1))
+                wandb.log({f"{model_name}/reconstruction": img}, step=train_step)
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
