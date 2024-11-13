@@ -20,12 +20,13 @@ import random
 from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.single_step import SingleStep
+from representations.acro import Acro
 from representations.multi_step import MultiStep
 from representations.bvae import BetaVariationalAutoencoder
 import os
 
 
-MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder}
+MODEL_DICT = {'single_step': SingleStep, 'acro': Acro, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder}
 
 def load_dataset(dataset_path):
     dataset = h5py.File(dataset_path, "r")
