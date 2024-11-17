@@ -9,6 +9,7 @@ control_type: inverse_dynamics
 train_stop_epochs: 100 # stop after this many training
 use_gen_nets: True
 dynamic_l1_penalty: True
+k_steps: 1 # 1 is equivalent to single_step because 1 - 1 = 0 which is just obs_next
 defaults:
   - networks/cnn@encoder
   - networks/mlp@forward

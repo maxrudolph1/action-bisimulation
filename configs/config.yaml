@@ -1,6 +1,6 @@
 logdir: 'results'
-# dataset: '/u/mrudolph/documents/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_0.hdf5'
-dataset: '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_0.hdf5'
+# dataset: '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_0.hdf5'
+dataset: '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_3.hdf5'
 wandb: False
 seed: 0
 n_epochs: 20

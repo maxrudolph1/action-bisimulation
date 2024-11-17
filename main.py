@@ -19,8 +19,8 @@ import torch.nn.functional as F
 import random
 from environments.nav2d.utils import perturb_heatmap
 import datetime
-from representations.single_step import SingleStep
 from representations.acro import Acro
+from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
 from representations.bvae import BetaVariationalAutoencoder
 import os

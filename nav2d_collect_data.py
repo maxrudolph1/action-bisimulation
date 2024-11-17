@@ -28,7 +28,8 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
     global_step = 0
     pbar = tqdm(total=num, position=idx)
     while global_step < num:
-        obs= env.reset()
+        obs = env.reset()
+        # obs, info = env.reset() # gymnasium vs gym
         done = False
         recompute = True
         kaction_buffer = list()
@@ -43,6 +44,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
                 action = optimal_actions.pop(0)
                 recompute = False
             obs_next, rew, done, info = env.step(action)
+            # obs_next, rew, truncated, info, done = env.step(action) # gymnasium vs gym
 
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
             actions.append(action)
