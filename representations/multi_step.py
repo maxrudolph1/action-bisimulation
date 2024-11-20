@@ -97,6 +97,7 @@ class MultiStep(torch.nn.Module):
         obs_y = obs_x[comp_idxs]
         obs_y_next = obs_x_next[comp_idxs]
 
+
         bs = obs_x.shape[0]
 
         ## NOT SUPPORTING K-step forward modeling right now
