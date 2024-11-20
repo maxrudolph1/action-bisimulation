@@ -87,7 +87,7 @@ def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
 
     if cfg.wandb:
-        wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
+        wandb.init(entity='rhearai-university-of-texas-at-austin', project="nav2d", config=OmegaConf.to_container(cfg),)
 
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -108,6 +108,8 @@ def train(cfg: DictConfig, dataset, models):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
         sample_ind_next = np.random.permutation(len(dataset["obs"]))
         steps_per_epoch = -(len(sample_ind_all) // -cfg.batch_size)
+
+        #BOOKMARK: training loop is here: 
         for i in tqdm.tqdm(range(steps_per_epoch), desc=f"Epoch #{epoch}"):
             start = i * cfg.batch_size
             end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)

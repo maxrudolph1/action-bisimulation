@@ -17,6 +17,8 @@ warm_start_ms_with_ss: False
 multi_step_forward_loss: l1
 reset_forward_model_every: 3000
 
+encoder_update_freq: 4  # MOD: cmd line arg for update ratio
+
 defaults:
   - networks/cnn@encoder
   - networks/mlp@forward
