@@ -92,27 +92,34 @@ def main(cfg: DictConfig):
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
 
-    dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
-    # dataset_paths = [
-    #     '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p1_k_steps_10.hdf5',
-    #     '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p2_k_steps_10.hdf5',
-    #     # '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p3_k_steps_10.hdf5',
-    #     # '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p4_k_steps_10.hdf5',
-    #     # '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p5_k_steps_10.hdf5',
-    # ]
-    # obs_shape = (3, 15, 15)
-    # act_shape = 4
+    # dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
+    dataset_paths = [
+        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p1_k_steps_10.hdf5',
+        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p2_k_steps_10.hdf5',
+        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p3_k_steps_10.hdf5',
+        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p4_k_steps_10.hdf5',
+        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p5_k_steps_10.hdf5',
+    ]
+    obs_shape = (3, 15, 15)
+    act_shape = 4
+
     models = create_models(cfg, obs_shape, act_shape)
     models = initialize_dependant_models(models)
 
-    train(cfg, dataset, models)
+    ts = 0
+    for d in dataset_paths:
+        dataset, obs_shape, act_shape = load_dataset(d)
+        ts = train(cfg, dataset, models, ts)
+        dataset = None
+
     # train(cfg, dataset_paths, models)
 
 
-def train(cfg: DictConfig, dataset, models):
+def train(cfg: DictConfig, dataset, models, ts):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
-    train_step = 0
+    # train_step = 0
+    train_step = ts
 
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
@@ -137,6 +144,8 @@ def train(cfg: DictConfig, dataset, models):
     os.makedirs(logdir)
     for model_name, model in models.items():
         model.save(logdir + f"/{model_name}.pt")
+
+    return train_step
 
 # NEW REVISION
 # def train(cfg: DictConfig, dataset_paths, models):
