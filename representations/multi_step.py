@@ -99,9 +99,9 @@ class MultiStep(torch.nn.Module):
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
         act = torch.as_tensor(batch["action"], device="cuda") # action taken at time step ( a_x )
 
-        #FIXME: removing this for now in case its messing with the much larger amount of epochs
-        # if train_step % self.reset_forward_model_every == 0 and self.reset_forward_model_every > 0:
-        #     self.forward_model.reset_weights()
+        #MOD: addign this back, except multiplied it by the encoder_update_freq (12000 now, not 3000)
+        if train_step % self.reset_forward_model_every == 0 and self.reset_forward_model_every > 0:
+            self.forward_model.reset_weights()
 
         # we shuffle the observations to get a random other observation, may need to change this later because the sampling is biased.
         comp_idxs = np.random.permutation(np.arange(obs_x.shape[0]))
@@ -118,7 +118,7 @@ class MultiStep(torch.nn.Module):
 
 
         
-        #FIXME: figure out what this is and add it back in:
+        #FIXME: is this behavioral? should it be added back in?
         # if self.use_states_with_same_action:
         #     act_x = act
         #     possible_actions = [0,1,2,3]
@@ -159,7 +159,7 @@ class MultiStep(torch.nn.Module):
             forward_model_next_loss.backward()
             self.forward_model_optimizer.step()
 
-        '''MULTI-STEP LOSS'''
+        '''MULTI-STEP'''
 
         # distance btwn latent rep from encoder
         distances = torch.linalg.norm(ox_encoded_online - oy_encoded_online, ord=1, dim=-1)
@@ -201,6 +201,8 @@ class MultiStep(torch.nn.Module):
         ms_loss = F.smooth_l1_loss(
             distances, (1 - self.gamma) * ss_distances.detach() + self.gamma * target_distances.detach()
         )
+
+        
 
         #this should update encoder conditionally
         if train_step % self.encoder_update_freq == 0:
