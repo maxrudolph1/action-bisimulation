@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+import random
 import numpy as np
 import torch.nn
 from matplotlib import cm
@@ -52,7 +53,8 @@ class Acro(torch.nn.Module):
         obs = torch.as_tensor(batch["obs"], device="cuda")
         act = torch.as_tensor(batch["action"], device="cuda")
 
-        random_step = random.randint(0, self.k_steps - 1)
+        random_step = random.randint(0, self.k_steps - 2)
+        # print (random_step, self.k_steps, batch["kobs"].shape)
         obs_next = torch.as_tensor(batch["kobs"][:, random_step], device="cuda")
 
         # obs_next = torch.as_tensor(batch["kobs"][:, self.k_steps - 1], device="cuda")
