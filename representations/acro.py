@@ -51,7 +51,11 @@ class Acro(torch.nn.Module):
             return {}
         obs = torch.as_tensor(batch["obs"], device="cuda")
         act = torch.as_tensor(batch["action"], device="cuda")
-        obs_next = torch.as_tensor(batch["kobs"][:, self.k_steps - 1], device="cuda")
+
+        random_step = random.randint(0, self.k_steps - 1)
+        obs_next = torch.as_tensor(batch["kobs"][:, random_step], device="cuda")
+
+        # obs_next = torch.as_tensor(batch["kobs"][:, self.k_steps - 1], device="cuda")
 
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
