@@ -106,10 +106,10 @@ def main(cfg: DictConfig):
     models = create_models(cfg, obs_shape, act_shape)
     models = initialize_dependant_models(models)
 
-    ts = 0
-    for d in dataset_paths:
-        dataset, obs_shape, act_shape = load_dataset(d)
-        ts = train(cfg, dataset, models, ts)
+    train_step = 0
+    for dataset_file in dataset_paths:
+        dataset, obs_shape, act_shape = load_dataset(dataset_file)
+        ts = train(cfg, dataset, models, train_step)
         dataset = None
 
     # train(cfg, dataset_paths, models)
