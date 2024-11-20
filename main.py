@@ -87,7 +87,7 @@ def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
 
     if cfg.wandb:
-        wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
+        wandb.init(entity='rhearai-university-of-texas-at-austin', project="nav2d", config=OmegaConf.to_container(cfg),)
 
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)

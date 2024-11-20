@@ -55,7 +55,15 @@ def perturb_heatmap(obs, encoder):
         goal_pos = np.argwhere(obs[2] == 1)
         if len(goal_pos) > 0:
             distances[goal_pos[0, 0], goal_pos[0, 1]] = 0
-    distances /= np.max(distances)
+    # distances /= np.max(distances)
+    #handling possible division by 0
+    max_distance = np.max(distances)
+    if max_distance != 0:
+        distances /= max_distance
+    else:
+        print("nav2d::utils.py - max_distance is 0\n")
+        distances = distances
+
     heatmap = (
         cm.gray(distances)[:, :, :3]
         .transpose([2, 0, 1])

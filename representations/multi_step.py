@@ -140,7 +140,8 @@ class MultiStep(torch.nn.Module):
             # oxk_encoded_target = self.target_encoder(kobs_x)  # target encoder z = \hat{phi}( x^(k) )
             # oxn_encoded_target = self.target_encoder(obs_x_next) # target encoder z = \hat{phi}( x' )
 
-        curr_latent_state = ox_encoded_online.detach()
+        # curr_latent_state = ox_encoded_online.detach()
+        curr_latent_state = ox_encoded_target.detach()
 
         for k in range(0, k_steps):
             act_k = act_seq[:,k]
@@ -155,7 +156,9 @@ class MultiStep(torch.nn.Module):
                 target_latent_state.detach(),
             )
 
-            cumalative_fw_loss += forward_model_next_loss
+            # cumalative_fw_loss += forward_model_next_loss
+            cumalative_fw_loss += (self.gamma ** k) * forward_model_next_loss
+
             curr_latent_state = latent_forward_prediction
 
 
@@ -182,7 +185,8 @@ class MultiStep(torch.nn.Module):
 
         self.encoder_optimizer.zero_grad()
         self.forward_model_optimizer.zero_grad()
-        ms_loss.backward()
+        # ms_loss.backward()
+        ms_loss.backward(retain_graph=True) #true so that pytorch doesn't accidentally free the graph?
         cumalative_fw_loss.backward()
         self.encoder_optimizer.step()
         self.forward_model_optimizer.step() 
