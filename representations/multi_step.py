@@ -99,8 +99,9 @@ class MultiStep(torch.nn.Module):
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
         act = torch.as_tensor(batch["action"], device="cuda") # action taken at time step ( a_x )
 
-        if train_step % self.reset_forward_model_every == 0 and self.reset_forward_model_every > 0:
-            self.forward_model.reset_weights()
+        #FIXME: removing this for now in case its messing with the much larger amount of epochs
+        # if train_step % self.reset_forward_model_every == 0 and self.reset_forward_model_every > 0:
+        #     self.forward_model.reset_weights()
 
         # we shuffle the observations to get a random other observation, may need to change this later because the sampling is biased.
         comp_idxs = np.random.permutation(np.arange(obs_x.shape[0]))
@@ -164,7 +165,7 @@ class MultiStep(torch.nn.Module):
         distances = torch.linalg.norm(ox_encoded_online - oy_encoded_online, ord=1, dim=-1)
 
         
-        #base case
+        #base case == ss?
         with torch.no_grad():
             ss_encoded_x = self.ss_encoder(obs_x)
             ss_encoded_y = self.ss_encoder(obs_y)
@@ -196,7 +197,7 @@ class MultiStep(torch.nn.Module):
 
 
 
-        #ms loss: combine base case w/ distances
+        #TODO: ms loss
         ms_loss = F.smooth_l1_loss(
             distances, (1 - self.gamma) * ss_distances.detach() + self.gamma * target_distances.detach()
         )
