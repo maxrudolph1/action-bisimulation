@@ -87,7 +87,19 @@ def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
 
     if cfg.wandb:
-        wandb.init(entity='rhearai-university-of-texas-at-austin', project="nav2d", config=OmegaConf.to_container(cfg),)
+        # wandb.init(entity='rhearai-university-of-texas-at-austin', project="nav2d", config=OmegaConf.to_container(cfg),)
+        run_name = (
+            f"lr={cfg.algos.multi_step.learning_rate}_"
+            f"fwrr={cfg.algos.multi_step.reset_forward_model_every}_"
+            f"n_epochs={cfg.n_epochs}_"
+            f"encoder_update_freq={cfg.algos.multi_step.encoder_update_freq}"
+        )
+        wandb.init(
+            entity='rhearai-university-of-texas-at-austin',
+            project="nav2d",
+            config=OmegaConf.to_container(cfg),
+            name=run_name
+        )
 
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)

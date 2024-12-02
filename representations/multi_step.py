@@ -99,7 +99,7 @@ class MultiStep(torch.nn.Module):
         obs_x_next = torch.as_tensor(batch["obs_next"], device="cuda") # next observation ( x' )
         act = torch.as_tensor(batch["action"], device="cuda") # action taken at time step ( a_x )
 
-        #MOD: addign this back, except multiplied it by the encoder_update_freq (12000 now, not 3000)
+        #NOTE: this is currently being set in sweep_ms.sh
         if train_step % self.reset_forward_model_every == 0 and self.reset_forward_model_every > 0:
             self.forward_model.reset_weights()
 
