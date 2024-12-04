@@ -10,9 +10,6 @@ from representations import utils
 from models import gen_model_nets
 
 
-
-
-
 class StochasticEncoder(torch.nn.Module):
     def __init__(self, obs_dim):
         super().__init__()
@@ -42,7 +39,7 @@ class InverseDynamics(torch.nn.Module):
 
     def forward(self, embed, embed_next):
         return self.fc(torch.cat([embed, embed_next], dim=-1))
-    
+
 class ActionSetPredictor(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, ksteps=1):
         super().__init__()
@@ -86,11 +83,11 @@ class ForwardDynamics(torch.nn.Module):
         top_layers = [torch.nn.Linear(embed_dim + action_dim, hidden_size), torch.nn.ReLU()]
         middle_layers = [torch.nn.Linear(hidden_size, hidden_size), torch.nn.ReLU()] * (hidden_layers-1)
         last_layers = [torch.nn.Linear(hidden_size, embed_dim)]
-        
+
         layers.extend(top_layers)
         layers.extend(middle_layers)
         layers.extend(last_layers)
-        
+
         self.fc = torch.nn.Sequential(
             *layers
         )
@@ -115,7 +112,7 @@ class DQN(torch.nn.Module):
 class DQNHER(torch.nn.Module):
     def __init__(self, state_shape, action_dim=4, args=None, atoms=1, split_obs=False, device='cpu', encoder_path=''):
         super().__init__()
-        
+
         # self.encoder = GoallessEncoder(state_shape)
         if not (encoder_path is None) and (len(encoder_path) > 0):
             self.encoder=torch.load(encoder_path).encoder
@@ -139,7 +136,7 @@ class DQNHER(torch.nn.Module):
         self.action_dim = action_dim
         self.device = device
         self.split_obs = split_obs
-        
+
     def forward(self, obs, state=None, info={}):
 
         obs = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
@@ -158,11 +155,11 @@ class DQNFull(torch.nn.Module):
         self.atoms = atoms
         self.action_dim = action_dim
         self.device = device
-        
+
     def forward(self, obs, state=None, info={}):
-        
+
         obs = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
-        
+
         embed = self.encoder(obs)
         if self.atoms == 1:
             logits = self.dqn(embed).view(-1,self.action_dim)
@@ -256,11 +253,11 @@ class Decoder(torch.nn.Module):
             .unsqueeze(-1)
             .expand(-1, -1, 15, 15)
         )
-            
+
         if self.use_grid:
             # combined = torch.cat([obs, grid_expand], dim=1)
             combined = torch.cat([x_expand, grid_expand], dim=1)
         else:
             combined = x_expand
-        
+
         return self.conv(combined)

@@ -86,8 +86,11 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
 def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
 
+    name = f"acro_sweeps_l1_{cfg.algos.acro.l1_penalty}_dynamic_{cfg.algos.acro.dynamic_l1_penalty}"
+    print("NOW RUNNING:", name)
     if cfg.wandb:
         wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
+        # wandb.init(entity='evan-kuo-edu', project="nav2d", name=name, config=OmegaConf.to_container(cfg),)
 
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -109,7 +112,7 @@ def main(cfg: DictConfig):
     train_step = 0
     for dataset_file in dataset_paths:
         dataset, obs_shape, act_shape = load_dataset(dataset_file)
-        ts = train(cfg, dataset, models, train_step)
+        train_step = train(cfg, dataset, models, train_step)
         dataset = None
 
     # train(cfg, dataset_paths, models)

@@ -27,9 +27,9 @@ class MultiStep(torch.nn.Module):
         self.tau = cfg.algos.multi_step.tau
 
         if cfg.algos.multi_step.get("base_case_path"):
-            self.ss_encoder = torch.load(cfg.algos.multi_step.get("base_case_path"))['encoder']
+            self.bc_encoder = torch.load(cfg.algos.multi_step.get("base_case_path"))['encoder']
         else:
-            self.ss_encoder = None
+            self.bc_encoder = None
 
         self.multi_step_forward_loss = cfg.algos.multi_step.multi_step_forward_loss
         self.use_states_with_same_action = cfg.algos.multi_step.use_states_with_same_action
@@ -38,7 +38,7 @@ class MultiStep(torch.nn.Module):
 
 
         if cfg.algos.multi_step.warm_start_ms_with_ss:
-            self.encoder = deepcopy(self.ss_encoder).cuda()
+            self.encoder = deepcopy(self.bc_encoder).cuda()
         else:
             self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
 
@@ -77,8 +77,9 @@ class MultiStep(torch.nn.Module):
     #     return next_obs
 
     def share_dependant_models(self, models):
-        if self.ss_encoder is None:
-            self.ss_encoder = models.get("single_step").encoder
+        pass
+        # if self.bc_encoder is None:
+        #     self.bc_encoder = models.get("single_step").encoder
 
 
     def train_step(self, batch, epoch, train_step):
@@ -143,8 +144,8 @@ class MultiStep(torch.nn.Module):
             self.forward_model_optimizer.step()
 
         with torch.no_grad():
-            ss_encoded_x = self.ss_encoder(obs_x)
-            ss_encoded_y = self.ss_encoder(obs_y)
+            ss_encoded_x = self.bc_encoder(obs_x)
+            ss_encoded_y = self.bc_encoder(obs_y)
             ss_diffs = (ss_encoded_x - ss_encoded_y).detach()
             ss_distances = torch.linalg.norm(ss_diffs, ord=1, dim=-1)
 
