@@ -22,10 +22,11 @@ import datetime
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
 from representations.bvae import BetaVariationalAutoencoder
+from representations.evaluators import Evaluators
 import os
 
 
-MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder}
+MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder, 'evaluators': Evaluators}
 
 def load_dataset(dataset_path):
     dataset = h5py.File(dataset_path, "r")
@@ -45,41 +46,32 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
     algo_cfgs = cfg.algos
     model_names = list(algo_cfgs.keys())
     models = {}
+    evaluators = {}
     
     for model_name in model_names:
-        model_cfg = algo_cfgs[model_name]
         model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, cfg=cfg)
         models[model_name] = model
-    return models
+        evaluators[model_name] = Evaluators(obs_shape=obs_shape, act_shape=act_shape, cfg=cfg.evaluators, model=model)
+    return models, evaluators
         
 def initialize_dependant_models(models):
     for model_name, model in models.items():
         model.share_dependant_models(models)
     return models
 
-def log_to_wandb(cfg, models, logs, samples, train_step):
+def log_to_wandb(cfg, evaluators, logs, samples, train_step):
     if train_step % cfg.met_log_freq == 0:
         labeled_logs = {f"{algo_name}/{key}": value for algo_name, algo_log in logs.items() for key, value in algo_log.items()}
         wandb.log(labeled_logs, step=train_step)
     if train_step % cfg.img_log_freq == 0:
-        for model_name, model in models.items():
-            obs = samples["obs"][0]
-            obs[1, :, :] = -1
-            obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
-            img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
-            wandb.log({f"{model_name}/heatmap": img}, step=train_step)
-
-        if model_name == "bvae":
-            obs = torch.tensor(samples["obs"][0])
-            obs_recon = model.decoder(model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
-            disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
-            img = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0,2), disp_obs], axis=1))
-            wandb.log({f"{model_name}/reconstruction": img}, step=train_step)
-
+        for model_name, evaluator in evaluators.items():
+            imgs = evaluator.eval_imgs(samples)
+            wandb_imgs_log = {f"{model_name}/{key}": img for key, img in imgs.items()}
+            wandb.log(wandb_imgs_log, step=train_step)
+            
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        
     if cfg.wandb: 
         wandb.init(entity='maxrudolph', project="nav2d", config=OmegaConf.to_container(cfg),)
         
@@ -87,13 +79,13 @@ def main(cfg: DictConfig):
     torch.manual_seed(cfg.seed)
     
     dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
-    models = create_models(cfg, obs_shape, act_shape)
+    models, evaluators = create_models(cfg, obs_shape, act_shape)
     models = initialize_dependant_models(models)
     
-    train(cfg, dataset, models)
+    train(cfg, dataset, models, evaluators)
     
     
-def train(cfg: DictConfig, dataset, models):
+def train(cfg: DictConfig, dataset, models, evaluators):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
     train_step = 0
@@ -107,14 +99,25 @@ def train(cfg: DictConfig, dataset, models):
             end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
             sample_ind = np.sort(sample_ind_all[start:end])
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
+            
+            # train the representation models
             for model_name, model in models.items():
                 log = model.train_step(samples, epoch, train_step)
                 wandb_logs[model_name].update(log)
-                
+
+            # train the evaluator models
+            for model_name, evaluator in evaluators.items():
+                log = evaluator.train_step(samples, epoch, train_step)
+                wandb_logs[model_name].update(log)
+
             if cfg.wandb:
-                log_to_wandb(cfg, models, wandb_logs, samples, train_step)
+                log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
                 
-            train_step += 1        
+            train_step += 1       
+
+
+         
+
             
     time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")    
     logdir = os.path.join(cfg.logdir, time_str)

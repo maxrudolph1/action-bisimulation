@@ -1,0 +1,20 @@
+reset_freq: 6000
+
+reconstruction:
+  beta: 0.01
+  learning_rate: 0.0001
+  use_grid: True
+  decoder:
+    hidden_layers: [64,64,64,96,96,128]
+    num_pooling: 2
+    acti: relu
+    use_layer_norm: False
+    output_dim: 64
+    type: cnn
+
+action_prediction: 
+  inverse:
+    post_hidden_layers: 2
+    post_activation: relu
+    post_layer_norm: False
+    type: mlp

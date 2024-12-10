@@ -5,7 +5,7 @@ seed: 0
 n_epochs: 20
 batch_size: 256
 met_log_freq: 10
-img_log_freq: 3000
-
+img_log_freq: 1000
 defaults:
   - algos: single_step
+  - algos/evaluators@evaluators
