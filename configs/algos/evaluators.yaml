@@ -1,4 +1,4 @@
-reset_freq: 6000
+reset_freq: 60000
 
 reconstruction:
   beta: 0.01

@@ -78,7 +78,8 @@ class Evaluators():
     def train_step(self, batch, epoch, train_step):
         if train_step % self.cfg.reset_freq  == 0:
             self.init_action_prediction()
-            self.init_reconstruction()tm
+            self.init_reconstruction()
+
         evaluator_losses = {}
         if self.cfg.reconstruction:
             recon_loss = self.decoder_train_step(batch, epoch, train_step)
@@ -99,7 +100,6 @@ class Evaluators():
         obs_recon = self.decoder(self.model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
         disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
         reconstruction = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0,2), disp_obs], axis=1))
-        
         return {"reconstruction": reconstruction, "heatmap": heatmap}
 
 

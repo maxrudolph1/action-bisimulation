@@ -1,6 +1,7 @@
 import gymnasium as gym
-from gym import spaces
-from gym.utils import seeding
+# from gym import spaces
+# from gym.utils import seeding
+import gymnasium.spaces as spaces
 import heapq
 import numpy as np
 import yaml

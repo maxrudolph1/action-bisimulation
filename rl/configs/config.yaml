@@ -39,7 +39,7 @@ env:
   grid_size: 10
   num_obstacles: 0
   obstacle_diameter: 1
-  static_goal: false
+  static_goal: true
 
 
 # network arguments
@@ -48,17 +48,17 @@ encoder_args:
   num_pooling: 2
   activation: "relu"
   layer_norm: false
-  output_dim: 256
+  output_dim: 64
 
 dqn_args:
-  hidden_layers: [256]
+  hidden_layers: [64]
   activation: "relu"
   layer_norm: false
   atoms: 1
 
 logger: "wandb" 
 wandb_project: "nav2d"
-wandb_entity: "YOUR_ENTITY"
+wandb_entity: "maxrudolph"
 watch: false
 save_buffer_name: null
 
