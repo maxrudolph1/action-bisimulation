@@ -104,7 +104,7 @@ class GeneralConv2DEncoder(torch.nn.Module):
             # torch.nn.MaxPool2d((2, 2)), #torch.nn.MaxPool2d((5, 5) if h // 4 > 2 else (2, 2)),
         )
         self.kwargs = kwargs
-
+        # import pdb;     pdb.set_trace()
         self.output_dim = self.conv(torch.zeros([1, in_channels, h, w])).flatten().shape[0]
         
         

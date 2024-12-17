@@ -79,78 +79,7 @@ def main(cfg: DictConfig):
             ignore_obs_next=True,
 
         )
-    # else:
-    #     def compute_reward_fn(ag, dg, goal_shape=None):
-    #         ag = ag.reshape(goal_shape)
-    #         dg = dg.reshape(goal_shape)
-            
-    #         rew = -np.ones((ag.shape[0], ag.shape[1]))
-    #         for i in range(goal_shape[1]):
-    #             ag_loc = np.where(ag[:,i,...] == 1)
-    #             dg_loc = np.where(dg[:,i,...] == 1)
-    #             # print(dg_loc)
-    #             vec_x = ag_loc[2] == dg_loc[2]
-    #             vec_y = ag_loc[3] == dg_loc[3]
-    #             agdg = (vec_x & vec_y)
-    #             # print(agdg)
-    #             rew[agdg,i] = 0
 
-    #         rew = -np.ones((ag.shape[0]* ag.shape[1],))
-    #         # rew[agdg] = 0
-   
-    #         return rew
-        
-    #     buffer = HERVectorReplayBuffer(
-    #         cfg.buffer_size,
-    #         len(train_envs),
-    #         compute_reward_fn=compute_reward_fn,
-    #         horizon=env.max_timesteps,
-    #         future_k=2,
-    #     )
-    # collector
-    
-    # def preprocess_her_fn(**kwargs):
-    #     in_reset = kwargs.keys() == {"obs", "info", "env_id"}
-    #     if in_reset:
-    #         return kwargs
-    #     buffer = kwargs
-    #     her_buffer = deepcopy(kwargs)
-    #     final_obs = her_buffer["obs_next"][-1]
-    #     fake_goal_grid = final_obs[1, :, :]
-    #     fake_goal_pos = np.where(fake_goal_grid == np.max(fake_goal_grid))
-        
-        
-    #     her_buffer["obs_next"][:, 2,:,:] = fake_goal_grid
-
-    #     # Finds where the agent reaches the new goal the first time
-    #     reach_goal_idx = np.where([np.all(obs[1,:,:] == obs[2,:,:]) for obs in her_buffer["obs_next"][:]])[0][0]
-        
-    #     # keep only experience up to the point where the agent reaches the new goal
-    #     for ele in her_buffer:
-    #         ele = ele[:reach_goal_idx+1]
-            
-    #     # update reward and termination
-    #     her_buffer["rew"][-1] = 0
-    #     her_buffer["done"][-1] = True
-        
-    #     # merge the original and HER transitions
-    #     for key in buffer:
-    #         if key == 'policy':
-    #             info_keys = buffer[key].keys()
-    #             for info_key in info_keys:
-    #                 buffer[key][info_key] = np.concatenate([buffer[key][info_key], her_buffer[key][info_key]], axis=0)
-    #         else:
-    #             buffer[key] = np.concatenate([buffer[key], her_buffer[key]], axis=0)
-    #     print(buffer["obs_next"].shape)
-    #     for key in buffer:
-    #         if key == 'policy':
-    #             info_keys = buffer[key].keys()
-    #             for info_key in info_keys:
-    #                 buffer[key][info_key] = buffer[key][info_key][-10:]
-    #         else:
-    #             buffer[key] = buffer[key][-10:]
-                
-    #     return buffer
     
     
     train_collector = Collector(policy, train_envs, buffer, exploration_noise=True)

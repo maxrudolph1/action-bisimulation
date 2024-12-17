@@ -1,72 +1,46 @@
 task: "Nav2D-v0"
 algo_name: "dqn"
 seed: 0
-scale_obs: 0
-eps_test: 0.005
-eps_train: 0.9
-eps_train_final: 0.2
-buffer_size: 100000
-lr: 0.0001
-gamma: 0.99
-n_step: 3
-target_update_freq: 500
-epoch: 200
-step_per_epoch: 10000
-step_per_collect: 100
-update_per_step: 0.1
-batch_size: 32
-training_num: 10
-test_num: 10
 logdir: "log"
-render: 0.0
-date: false
 pretrained_encoder_path: null
-
-# custom args
-episode_per_test: 100
-use_her: false
-dense_reward: false
 name: ""
-
-device: "cuda"  # or "cpu", depending on availability
-frames_stack: 1
-resume_path: null
-save_models: True
 freeze_encoder: false
 
-env:
-  max_timesteps: 50
-  grid_size: 10
-  num_obstacles: 0
-  obstacle_diameter: 1
-  static_goal: true
-
-
-# network arguments
-encoder_args:
-  hidden_layers: [64, 64, 64, 96, 96, 128]
-  num_pooling: 2
-  activation: "relu"
-  layer_norm: false
-  output_dim: 64
-
-dqn_args:
-  hidden_layers: [64]
-  activation: "relu"
-  layer_norm: false
-  atoms: 1
-
+# eval arguments
 logger: "wandb" 
 wandb_project: "nav2d"
 wandb_entity: "maxrudolph"
 watch: false
 save_buffer_name: null
+use_wandb: False
+render_freq: 50000
+eval_freq: 1000
+train_steps: 3000000
 
-icm_lr_scale: 0.0
-icm_reward_scale: 0.01
-icm_forward_loss_weight: 0.2
 
-state_shape: None
-action_shape: None
+env:
+  max_timesteps: 50
+  grid_size: 7
+  num_obstacles: 0
+  obstacle_diameter: 1
+  static_goal: true
 
-resume_id: None
+rl: 
+  learning_rate: 0.001
+  buffer_size: 100000
+  learning_starts: 1000
+  batch_size: 32
+  tau: 0.005
+  gamma: 0.95
+  train_freq: 1
+  exploration_initial_eps: 0.9
+  exploration_final_eps: 0.2
+  device: "cuda"
+
+# network arguments
+encoder_args:
+  hidden_layers: [64, 64, 96, 128]
+  num_pooling: 2
+  activation: "relu"
+  layer_norm: false
+  output_dim: 64

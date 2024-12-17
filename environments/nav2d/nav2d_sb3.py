@@ -4,7 +4,7 @@ from gymnasium.utils import seeding
 import heapq
 import numpy as np
 import yaml
-
+from copy import copy
 
 class Navigate2D(gym.Env):
     actions = np.array([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=int)
@@ -23,6 +23,7 @@ class Navigate2D(gym.Env):
         obstacle_distance_metric=False,
         static_goal=False,
     ):
+        
         self.n_obs = num_obstacles
         self.size = grid_size
         self.r_obs = np.max([obstacle_diameter // 2, 1])
@@ -42,7 +43,6 @@ class Navigate2D(gym.Env):
         self.goal = None
         self.grid = None
         self.dist = None
-        self.buffer = None
         self.np_random = None
         self.step_count = 0
         if env_config is not None and env_config != -1:
@@ -50,6 +50,9 @@ class Navigate2D(gym.Env):
                 self.config = yaml.load(file)
         else:
             self.config = -1
+        self.render_mode = 'rgb_array'
+        print(grid_size)
+
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -81,17 +84,19 @@ class Navigate2D(gym.Env):
             free_idx = free_idx[
                 np.linalg.norm(free_idx - start, ord=1, axis=-1) >= self.min_goal_dist
             ]
-            goal = free_idx[
-                self.np_random.integers(0, free_idx.shape[0], 1), :
-            ].squeeze()
+
             grid[1, start[0], start[1]] = 1.0
             
             if self.static_goal:
-                grid[2, self.size // 2, self.size // 2] = 1.0
+                goal = np.array([self.size // 2, self.size // 2])
+                grid[2, goal[0], goal[1]] = 1.0
                 min_center = self.size // 2 - self.r_obs
                 max_center = self.size // 2 + self.r_obs
                 grid[0, min_center:max_center, min_center:max_center] = 0.0
             else:
+                goal = free_idx[
+                    self.np_random.integers(0, free_idx.shape[0], 1), :
+                ].squeeze()
                 grid[2, goal[0], goal[1]] = 1.0
                 goal_x = goal[0] - self.r_obs
                 goal_y = goal[1] - self.r_obs
@@ -103,7 +108,6 @@ class Navigate2D(gym.Env):
             self.goal = goal
             self.grid = grid
             self.dist = np.linalg.norm(start - goal, ord=1)
-            self.buffer = []
         
             if self.find_path() is not None:
                 break
@@ -114,7 +118,10 @@ class Navigate2D(gym.Env):
         self.step_count += 1
         old_grid = self.grid.copy()
         old_pos = self.pos.copy()
-        new_pos = old_pos + self.actions[action]
+        try:
+            new_pos = old_pos + self.actions[action]
+        except:
+            import pdb; pdb.set_trace()
         reward = -1
         if (
             np.all(new_pos >= 0)
@@ -127,53 +134,18 @@ class Navigate2D(gym.Env):
             np.copyto(self.pos, new_pos)
             if np.all(new_pos == self.goal):
                 reward = 0
-        done = reward == 0 or self.step_count >= self.max_timesteps
 
-        self.buffer.append((old_grid, old_pos, action))
+        terminated = (reward == 0)
+        
+        truncated = (self.step_count >= self.max_timesteps)
+        
         info = {}
         info["pos"] = self.pos.copy()
         info["goal"] = self.goal.copy()
         info["dist"] = self.dist.copy()
-        return self._get_obs(self.grid, self.pos, self.goal), reward, done, done, info
-
-    def forward_oracle(self, state):
-        # state: shape (n, c, h, w)
-        # return: shape (4, n, c, h, w)
-        grid = state[..., :: self.scale, :: self.scale]
-        grid = (grid + 1) / 2
-        old_pos = np.argwhere(grid[:, 1] != 0)  # shape (n, 3)
-        assert np.all(old_pos[:, 0] == np.arange(state.shape[0]))
-        old_pos = old_pos[:, 1:]  # shape (n, 2)
-
-        new_pos = old_pos + self.actions[:, None, :]  # shape (4, n, 2)
-        mask = np.all(
-            [
-                np.all(new_pos >= 0, axis=-1),  # shape (4, n)
-                np.all(new_pos < self.size, axis=-1),  # shape (4, n)
-                np.logical_not(
-                    grid[
-                        np.arange(grid.shape[0]),
-                        0,
-                        new_pos[:, :, 0] % self.size,
-                        new_pos[:, :, 1] % self.size,
-                    ]
-                ),
-            ],
-            axis=0,
-        )
-        old_grid = grid.copy()
-        grid = np.broadcast_to(grid, (4,) + grid.shape).copy()
-        grid[:, np.arange(state.shape[0]), 1, old_pos[:, 0], old_pos[:, 1]] = 0
-        grid[
-            np.arange(4)[:, None],
-            np.arange(state.shape[0]),
-            1,
-            new_pos[:, :, 0] % self.size,
-            new_pos[:, :, 1] % self.size,
-        ] = 1.0
-        grid = np.where(mask[..., None, None, None], grid, old_grid)
-        normed = grid * 2 - 1
-        return normed.repeat(self.scale, axis=-2).repeat(self.scale, axis=-1)
+        info["grid"] = self.grid.copy()
+        info["terminal_observation"] = self._get_obs(self.grid, self.pos, self.goal)
+        return self._get_obs(self.grid, self.pos, self.goal), reward, terminated, truncated, info
 
     def _get_obs(self, grid, pos=None, goal=None):
         return (grid * 255).astype(np.uint8)
