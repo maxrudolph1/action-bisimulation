@@ -3,7 +3,7 @@ algo_name: "dqn"
 seed: 0
 logdir: "log"
 pretrained_encoder_path: null
-exp_name: ""
+exp_name: "dqn"
 freeze_encoder: false
 
 # eval arguments
@@ -40,7 +40,7 @@ rl:
   train_freq: 1
   start_epsilon: 1.0
   end_epsilon: 0.05
-  exploration_fraction: 0.5 # the fraction of `total-timesteps` it takes from start-e to go end-e
+  exploration_fraction: 0.5 # the fraction of `total-timesteps` it takes from start_epsilon to go end_epsilon
   num_envs: 1
   target_network_frequency: 500
   train_frequency: 10
@@ -48,8 +48,8 @@ rl:
 
 # network arguments
 encoder:
-  hidden_layers: [64, 64, 96, 128]
-  num_pooling: 2
+  hidden_layers: [64, 96, 128]
+  num_pooling: 1 # this needs to be at least len(hidden_layers) - 2
   activation: "relu"
   layer_norm: false
   output_dim: 64

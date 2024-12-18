@@ -43,6 +43,17 @@ class QNetwork(nn.Module):
         obs_shape = env.single_observation_space.shape
         self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda() 
         self.output_dim = self.encoder.output_dim
+        # self.encoder = nn.Sequential(
+        #     nn.Conv2d(3, 64, kernel_size=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(64, 64, kernel_size=3, padding=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(64, 96, kernel_size=3,   stride=2,padding=1),
+        #     nn.ReLU(),
+        #     nn.MaxPool2d(kernel_size=3, stride=2),
+        #     nn.Flatten(),
+        # )
+        # self.output_dim = self.encoder(torch.zeros(1, *env.single_observation_space.shape)).shape[1]
         self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
 
     def forward(self, x):
