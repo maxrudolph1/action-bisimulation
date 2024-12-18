@@ -86,11 +86,16 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
 def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
 
-    name = f"acro_sweeps_l1_{cfg.algos.acro.l1_penalty}_dynamic_{cfg.algos.acro.dynamic_l1_penalty}"
-    print("NOW RUNNING:", name)
+	wandb_name = None
     if cfg.wandb:
-        wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
-        # wandb.init(entity='evan-kuo-edu', project="nav2d", name=name, config=OmegaConf.to_container(cfg),)
+        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps-1}_l1_{cfg.algos.acro.l1_penalty}_dynamic_{cfg.algos.acro.dynamic_l1_penalty}"
+        name = f"gamma_sweeps_bisim_gamma{cfg.algos.multi_step.gamma}"
+
+        # wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
+        wandb.init(entity='evan-kuo-edu', project="nav2d", name=name, config=OmegaConf.to_container(cfg),)
+
+        wandb_name = wandb.run.name
+        print("NOW RUNNING:", wandb_name)
 
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
@@ -112,13 +117,11 @@ def main(cfg: DictConfig):
     train_step = 0
     for dataset_file in dataset_paths:
         dataset, obs_shape, act_shape = load_dataset(dataset_file)
-        train_step = train(cfg, dataset, models, train_step)
+        train_step = train(cfg, dataset, models, train_step, wandb_name)
         dataset = None
 
-    # train(cfg, dataset_paths, models)
 
-
-def train(cfg: DictConfig, dataset, models, ts):
+def train(cfg: DictConfig, dataset, models, ts, wandb_name=None):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
     # train_step = 0
@@ -131,7 +134,7 @@ def train(cfg: DictConfig, dataset, models, ts):
         for i in tqdm.tqdm(range(steps_per_epoch), desc=f"Epoch #{epoch}"):
             start = i * cfg.batch_size
             end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
-            sample_ind = np.sort(sample_ind_all[start:end]) # TODO: WHY DO WE SORT?
+            sample_ind = np.sort(sample_ind_all[start:end])
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
             for model_name, model in models.items():
                 log = model.train_step(samples, epoch, train_step)
@@ -142,7 +145,7 @@ def train(cfg: DictConfig, dataset, models, ts):
 
             train_step += 1
 
-    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    time_str = ((wandb_name + "_") if wandb_name not None else "") + ("ts_" + ts + "_") + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     logdir = os.path.join(cfg.logdir, time_str)
     os.makedirs(logdir)
     for model_name, model in models.items():
@@ -150,87 +153,6 @@ def train(cfg: DictConfig, dataset, models, ts):
 
     return train_step
 
-# NEW REVISION
-# def train(cfg: DictConfig, dataset_paths, models):
-#     # Load dataset keys and shapes from the first dataset
-#     with h5py.File(dataset_paths[0], "r") as file:
-#         dataset_keys = []
-#         file.visit(
-#             lambda key: dataset_keys.append(key)
-#             if isinstance(file[key], h5py.Dataset)
-#             else None
-#         )
-#         total_samples_per_file = len(file["obs"])
-
-#     wandb_logs = {key: {} for key in models.keys()}
-#     train_step = 0
-#     num_files = len(dataset_paths)
-#     total_samples = num_files * total_samples_per_file
-
-
-#     for epoch in range(cfg.n_epochs):
-#         # Create a global permutation of indices across all files
-#         global_indices = np.random.permutation(total_samples)
-#         steps_per_epoch = -(len(global_indices) // -cfg.batch_size)
-
-#         for i in tqdm.tqdm(range(steps_per_epoch), desc=f"Epoch #{epoch}"):
-#             start = i * cfg.batch_size
-#             end = min(len(global_indices), (i + 1) * cfg.batch_size)
-#             batch_indices = global_indices[start:end]
-
-#             # Group indices by file
-#             file_to_indices = {file_idx: [] for file_idx in range(num_files)}
-#             for global_index in batch_indices:
-#                 file_index = global_index // total_samples_per_file
-#                 local_index = global_index % total_samples_per_file
-#                 file_to_indices[file_index].append(local_index)
-
-#             # Initialize batch samples as a dictionary like in load_dataset
-#             samples = {key: [] for key in dataset_keys}
-
-#             # Load lazily from each file and aggregate into the batch
-#             for file_index, local_indices in file_to_indices.items():
-#                 if not local_indices:  # Skip files without indices
-#                     continue
-
-#                 # Sort indices for HDF5 access
-#                 sorted_indices = np.sort(local_indices)
-
-#                 with h5py.File(dataset_paths[file_index], "r") as file:
-#                     for key in dataset_keys:
-#                         # Fetch data in sorted order
-#                         sorted_data = file[key][sorted_indices]
-
-#                         # Map back to the original order using argsort
-#                         original_order = np.argsort(np.argsort(local_indices))
-#                         reordered_data = sorted_data[original_order]
-
-#                         # Append to samples
-#                         samples[key].append(reordered_data)
-
-#             # Convert lists into NumPy arrays (similar to original load_dataset output)
-#             samples = {key: np.concatenate(value, axis=0) for key, value in samples.items()}
-
-#             # Convert samples to tensors for training (if needed by the models)
-#             samples = {key: torch.as_tensor(value, device="cuda") for key, value in samples.items()}
-
-#             # Train step for each model
-#             for model_name, model in models.items():
-#                 log = model.train_step(samples, epoch, train_step)
-#                 wandb_logs[model_name].update(log)
-
-#             # Log to WandB if enabled
-#             if cfg.wandb:
-#                 log_to_wandb(cfg, models, wandb_logs, samples, train_step)
-
-#             train_step += 1
-
-#     # Save models
-#     time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-#     logdir = os.path.join(cfg.logdir, time_str)
-#     os.makedirs(logdir)
-#     for model_name, model in models.items():
-#         model.save(logdir + f"/{model_name}.pt")
 
 if __name__=="__main__":
     main()
