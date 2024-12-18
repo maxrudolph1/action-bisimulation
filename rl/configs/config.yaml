@@ -1,6 +1,6 @@
 task: "Nav2D-v0"
 algo_name: "dqn"
-seed: 0
+seed: 1
 logdir: "log"
 pretrained_encoder_path: null
 exp_name: "dqn"
@@ -17,9 +17,11 @@ save_model: False
 use_wandb: False
 render_freq: 50000
 eval_freq: 1000
-train_steps: 3000000
+total_timesteps: 500000
 torch_deterministic: True
 cuda: True
+num_envs: 1
+
 
 
 
@@ -41,7 +43,6 @@ rl:
   start_epsilon: 1.0
   end_epsilon: 0.05
   exploration_fraction: 0.5 # the fraction of `total-timesteps` it takes from start_epsilon to go end_epsilon
-  num_envs: 1
   target_network_frequency: 500
   train_frequency: 10
 
