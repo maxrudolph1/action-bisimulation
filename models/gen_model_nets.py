@@ -19,6 +19,8 @@ class GenEncoder(torch.nn.Module):
         else:    
             self.output_dim = self.encoder.output_dim
             self.use_output_layer = False
+        self.cfg = cfg
+        self.obs_dim = obs_dim
         
     def forward(self, obs):
         z = self.cnn_encoder(obs)

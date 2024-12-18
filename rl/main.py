@@ -16,14 +16,15 @@ from torch.utils.tensorboard import SummaryWriter
 from environments.nav2d.nav2d_sb3 import Navigate2D
 import hydra
 from omegaconf import DictConfig, OmegaConf
+from models.gen_model_nets import GenEncoder
 
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
     capture_video= False
     def thunk():
-        if capture_video and idx == 0:
+        if capture_video:
             env = Navigate2D(**env_kwargs)
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
+            env = gym.wrappers.RecordVideo(env, f"videos")
         else:
             env = Navigate2D(**env_kwargs)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -36,27 +37,31 @@ def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, ob
 
 # ALGO LOGIC: initialize agent here:
 class QNetwork(nn.Module):
-    def __init__(self, env):
+    def __init__(self, env, encoder_cfg):
         super().__init__()
-        self.cnn = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(64, 96, kernel_size=3,   stride=2,padding=1),
-            nn.ReLU(),
-            nn.Conv2d(96, 128, kernel_size=3, stride=2, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Flatten(),
-        )
-        self.out_dim = self.cnn(torch.zeros(1, *env.single_observation_space.shape)).shape[1]
-        self.q_value_head = nn.Linear(self.out_dim, env.single_action_space.n)
-
+        obs_shape = env.single_observation_space.shape
+        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda() 
+        self.output_dim = self.encoder.output_dim
+        self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
+        self.encoder_cfg = encoder_cfg
+        self.obs_shape = obs_shape
 
     def forward(self, x):
         x = x.float() / 255.0
-        return self.q_value_head(self.cnn(x))
+        return self.q_value_head(self.encoder(x))
+    
+    @classmethod
+    def from_encoder(cls, encoder_checkpoint_path, env, encoder_cfg):
+        encoder_checkpoint = torch.load(encoder_checkpoint_path)
+        model = cls(env, encoder_cfg)
+        model.encoder(torch.load(encoder_checkpoint_path))
+        return model
+    
+    def freeze_encoder(self):
+        for param in self.encoder.parameters():
+            param.requires_grad = False
+    
+
 
 
 
@@ -110,9 +115,9 @@ poetry run pip install "stable_baselines3==2.0.0a1"
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-    q_network = QNetwork(envs).to(device)
+    q_network = QNetwork(envs, encoder_cfg=cfg.encoder).to(device)
     optimizer = optim.Adam(q_network.parameters(), lr=cfg.rl.learning_rate)
-    target_network = QNetwork(envs).to(device)
+    target_network = QNetwork(envs, encoder_cfg=cfg.encoder).to(device)
     target_network.load_state_dict(q_network.state_dict())
 
     rb = ReplayBuffer(
