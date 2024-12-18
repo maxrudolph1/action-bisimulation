@@ -27,6 +27,9 @@ class GenEncoder(torch.nn.Module):
         if self.use_output_layer:
             z = self.last_layer(z)
         return z
+    
+    def save(self, path):
+        torch.save(dict(obs_dim=self.obs_dim, cfg=self.cfg, state_dict=self.state_dict()), path)
 
 class GenInverseDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, cfg):
