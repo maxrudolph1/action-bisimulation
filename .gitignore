@@ -6,3 +6,4 @@ results/
 log/
 **/*.zip
 runs/
+**/*.pt

@@ -17,6 +17,8 @@ from environments.nav2d.nav2d_sb3 import Navigate2D
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from models.gen_model_nets import GenEncoder
+import stable_baselines3 as sb3
+
 
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
@@ -51,19 +53,17 @@ class QNetwork(nn.Module):
         return self.q_value_head(self.encoder(x))
     
     @classmethod
-    def from_encoder(cls, encoder_checkpoint_path, env, encoder_cfg):
+    def from_encoder_checkpoint(cls, env, encoder_checkpoint_path,):
         encoder_checkpoint = torch.load(encoder_checkpoint_path)
+        encoder_cfg = encoder_checkpoint.get("cfg")
         model = cls(env, encoder_cfg)
-        model.encoder(torch.load(encoder_checkpoint_path))
+        model.encoder.load_state_dict(encoder_checkpoint["state_dict"])
         return model
     
     def freeze_encoder(self):
         for param in self.encoder.parameters():
             param.requires_grad = False
     
-
-
-
 
 def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
     slope = (end_e - start_e) / duration
@@ -72,15 +72,12 @@ def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
-    import stable_baselines3 as sb3
 
     if sb3.__version__ < "2.0":
         raise ValueError(
             """Ongoing migration: run the following command to install the new dependencies:
-
-poetry run pip install "stable_baselines3==2.0.0a1"
-"""
-        )
+            poetry run pip install "stable_baselines3==2.0.0a1"
+            """)
     assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
     run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
     if cfg.use_wandb:
@@ -111,13 +108,17 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env() for i in range(cfg.num_envs)]
+        [make_env(env_kwargs=cfg.env) for i in range(cfg.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-    q_network = QNetwork(envs, encoder_cfg=cfg.encoder).to(device)
+    if cfg.encoder.path:
+        q_network = QNetwork.from_encoder_checkpoint(envs, cfg.encoder.path).to(device)
+    else:
+        q_network = QNetwork(envs, encoder_cfg=cfg.encoder).to(device)
+
     optimizer = optim.Adam(q_network.parameters(), lr=cfg.rl.learning_rate)
-    target_network = QNetwork(envs, encoder_cfg=cfg.encoder).to(device)
+    target_network = QNetwork(envs, encoder_cfg=q_network.encoder_cfg).to(device)
     target_network.load_state_dict(q_network.state_dict())
 
     rb = ReplayBuffer(
