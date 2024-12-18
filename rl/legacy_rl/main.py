@@ -21,7 +21,7 @@ from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecEnv
 from stable_baselines3.common.env_util import make_vec_env
-from rl.utils import WandbEvalCallback
+from rl.legacy_rl.utils import WandbEvalCallback
 
 import copy
 import wandb

@@ -3,19 +3,24 @@ algo_name: "dqn"
 seed: 0
 logdir: "log"
 pretrained_encoder_path: null
-name: ""
+exp_name: ""
 freeze_encoder: false
 
 # eval arguments
 logger: "wandb" 
-wandb_project: "nav2d"
+wandb_project_name: "nav2d"
 wandb_entity: "maxrudolph"
-watch: false
+capture_video: false
 save_buffer_name: null
+save_model: False
+
 use_wandb: False
 render_freq: 50000
 eval_freq: 1000
 train_steps: 3000000
+torch_deterministic: True
+cuda: True
+
 
 
 env:
@@ -26,19 +31,23 @@ env:
   static_goal: true
 
 rl: 
-  learning_rate: 0.001
-  buffer_size: 100000
-  learning_starts: 1000
-  batch_size: 32
-  tau: 0.005
-  gamma: 0.95
+  learning_rate: 0.00025
+  buffer_size: 10000
+  learning_starts: 10000
+  batch_size: 128
+  tau: 1.0
+  gamma: 0.99
   train_freq: 1
-  exploration_initial_eps: 0.9
-  exploration_final_eps: 0.2
-  device: "cuda"
+  start_epsilon: 1.0
+  end_epsilon: 0.05
+  exploration_fraction: 0.5 # the fraction of `total-timesteps` it takes from start-e to go end-e
+  num_envs: 1
+  target_network_frequency: 500
+  train_frequency: 10
+
 
 # network arguments
-encoder_args:
+encoder:
   hidden_layers: [64, 64, 96, 128]
   num_pooling: 2
   activation: "relu"
