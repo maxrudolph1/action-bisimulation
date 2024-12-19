@@ -14,7 +14,7 @@ from environments.nav2d.nav2d import Navigate2D
 
 def collect(num, idx, seed, epsilon, num_obstacles, args):
 
-    env = Navigate2D(num_obstacles, grid_size=args.grid_size, 
+    env = Navigate2D(num_obstacles, grid_size=args.grid_size,
                                 static_goal=not args.random_goal,
                                 obstacle_diameter=args.obstacle_size,
                                 env_config=args.env_config)
@@ -28,7 +28,8 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
     global_step = 0
     pbar = tqdm(total=num, position=idx)
     while global_step < num:
-        obs= env.reset()
+        obs = env.reset()
+        # obs, info = env.reset() # gymnasium vs gym
         done = False
         recompute = True
         kaction_buffer = list()
@@ -43,20 +44,21 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
                 action = optimal_actions.pop(0)
                 recompute = False
             obs_next, rew, done, info = env.step(action)
+            # obs_next, rew, truncated, info, done = env.step(action) # gymnasium vs gym
 
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
             actions.append(action)
             obs = obs_next
             global_step += 1
             pbar.update(1)
-            
+
         # create length k seqeuences of actions
         action_sequences = list()
         kvalid_values = list()
         k_obs = list()
 
         for i in range(len(kaction_buffer)):
-            action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))), 
+            action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))),
                                                                                 (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0) # not equal because we don't have obs_next for the final state
             if args.k_step_action > 0:
@@ -70,7 +72,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 
         for kact, kvalid, kobs, (obs, action, rew, obs_next, done, pos, goal) in zip(action_sequences, kvalid_values, k_obs,  kaction_buffer):
             buffer.append((obs, action, rew, obs_next, done, pos, goal, kact, kvalid, kobs))
-            
+
     return buffer
 
 
@@ -78,7 +80,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num-workers", default=32, type=int)
-    parser.add_argument("--size", type=int, default=10000)
+    parser.add_argument("--size", type=int, default=1000000)
     parser.add_argument("--epsilon", type=float, default=0.5)
     parser.add_argument("--num-obstacles", type=int, default=10)
     parser.add_argument("--obstacle-size", type=int, default=1)
@@ -93,7 +95,7 @@ def main():
     parser.add_argument("--save-path", type=str, default=".")
     args = parser.parse_args()
 
-    
+
     with Pool(args.num_workers, initargs=(RLock(),), initializer=tqdm.set_lock) as p:
         buffers = p.starmap(
             collect,

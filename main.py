@@ -4,7 +4,6 @@ import shutil
 import sys
 from argparse import ArgumentParser
 from collections import deque
-import time 
 import h5py
 import tqdm
 from matplotlib import cm
@@ -19,6 +18,7 @@ import torch.nn.functional as F
 import random
 from environments.nav2d.utils import perturb_heatmap
 import datetime
+from representations.acro import Acro
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
 from representations.bvae import BetaVariationalAutoencoder
@@ -26,18 +26,20 @@ from representations.evaluators import Evaluators
 import os
 
 
-MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder, 'evaluators': Evaluators}
+
+MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder, 'evaluators': Evaluators, 'acro': Acro}
+
 
 def load_dataset(dataset_path):
-    dataset = h5py.File(dataset_path, "r")
-    dataset_keys = []
-    dataset.visit(lambda key: dataset_keys.append(key) if isinstance(dataset[key], h5py.Dataset) else None)
-    
-    mem_dataset = {}
-    for key in dataset_keys:
-        mem_dataset[key] = dataset[key][:]
-    dataset = mem_dataset
-    
+    with h5py.File(dataset_path, "r") as dataset:
+        dataset_keys = []
+        dataset.visit(lambda key: dataset_keys.append(key) if isinstance(dataset[key], h5py.Dataset) else None)
+
+        mem_dataset = {}
+        for key in dataset_keys:
+            mem_dataset[key] = dataset[key][:]
+        dataset = mem_dataset
+
     obs_shape = dataset["obs"][0].shape
     act_shape = dataset["action"].max() + 1
     return dataset, obs_shape, act_shape
@@ -47,7 +49,7 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
     model_names = list(algo_cfgs.keys())
     models = {}
     evaluators = {}
-    
+
     for model_name in model_names:
         model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, cfg=cfg)
         models[model_name] = model
@@ -82,14 +84,18 @@ def main(cfg: DictConfig):
     models, evaluators = create_models(cfg, obs_shape, act_shape)
     models = initialize_dependant_models(models)
     
-    train(cfg, dataset, models, evaluators)
+    for dataset_file in cfg.datasets:
+        dataset, obs_shape, act_shape = load_dataset(dataset_file)
+        print(f"FINISHED LOADING {dataset_file}")
+
+        train_step = train(cfg, dataset, models, train_step, wandb_name, cur_date_time)
+        dataset = None
     
     
 def train(cfg: DictConfig, dataset, models, evaluators):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
-    train_step = 0
-    
+
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
         sample_ind_next = np.random.permutation(len(dataset["obs"]))
@@ -104,7 +110,6 @@ def train(cfg: DictConfig, dataset, models, evaluators):
             for model_name, model in models.items():
                 log = model.train_step(samples, epoch, train_step)
                 wandb_logs[model_name].update(log)
-
             # train the evaluator models
             for model_name, evaluator in evaluators.items():
                 log = evaluator.train_step(samples, epoch, train_step)
@@ -121,11 +126,13 @@ def train(cfg: DictConfig, dataset, models, evaluators):
             
     time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")    
     logdir = os.path.join(cfg.logdir, time_str)
+
     os.makedirs(logdir)
     for model_name, model in models.items():
         model.save(logdir + f"/{model_name}.pt")
-                
-            
+
+    return train_step
+
 
 if __name__=="__main__":
     main()

@@ -1,10 +1,9 @@
-
 class Encoder(torch.nn.Module):
     def __init__(self, obs_dim, normalized=False, **kwargs):
         super().__init__()
         c, h, w = obs_dim
         self.normalized = normalized
-        
+
         self.grid = (
             torch.stack(
                 torch.meshgrid(
@@ -15,8 +14,8 @@ class Encoder(torch.nn.Module):
             * 2
             - 1
         ).cuda()
-        
-        
+
+
         self.conv = torch.nn.Sequential(
             torch.nn.Conv2d(
                 in_channels=c + 2 if 'use_grid' in kwargs and kwargs['use_grid'] else c,
@@ -74,7 +73,7 @@ class Encoder(torch.nn.Module):
             self.output_dim = self.conv(torch.zeros([1, c + 2, h, w])).flatten().shape[0]
         else:
             self.output_dim = self.conv(torch.zeros([1, c, h, w])).flatten().shape[0]
-        
+
 
     def forward(self, obs):
         obs = torch.as_tensor(obs, device="cuda")

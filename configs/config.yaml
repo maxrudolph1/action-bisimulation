@@ -1,7 +1,13 @@
 logdir: 'results'
-dataset: '/u/mrudolph/documents/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_0.hdf5'
+datasets: [
+  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p1_k_steps_10.hdf5',
+  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p2_k_steps_10.hdf5',
+  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p3_k_steps_10.hdf5',
+  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p4_k_steps_10.hdf5',
+  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p5_k_steps_10.hdf5',
+]
 wandb: False
-seed: 0 
+seed: 0
 n_epochs: 20
 batch_size: 256
 met_log_freq: 10
