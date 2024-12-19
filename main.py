@@ -25,10 +25,7 @@ from representations.bvae import BetaVariationalAutoencoder
 from representations.evaluators import Evaluators
 import os
 
-
-
 MODEL_DICT = {'single_step': SingleStep, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder, 'evaluators': Evaluators, 'acro': Acro}
-
 
 def load_dataset(dataset_path):
     with h5py.File(dataset_path, "r") as dataset:
@@ -75,27 +72,24 @@ def log_to_wandb(cfg, evaluators, logs, samples, train_step):
 def main(cfg: DictConfig):
     log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
     if cfg.wandb: 
-        wandb.init(entity='maxrudolph', project="nav2d", config=OmegaConf.to_container(cfg),)
+        wandb.init(entity=cfg.wandb_entity, project="nav2d", config=OmegaConf.to_container(cfg),)
         
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
-    
     dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
+    print(f"FINISHED LOADING {cfg.dataset}")
+    
     models, evaluators = create_models(cfg, obs_shape, act_shape)
     models = initialize_dependant_models(models)
     
-    for dataset_file in cfg.datasets:
-        dataset, obs_shape, act_shape = load_dataset(dataset_file)
-        print(f"FINISHED LOADING {dataset_file}")
-
-        train_step = train(cfg, dataset, models, train_step, wandb_name, cur_date_time)
-        dataset = None
+    train_step = train(cfg, dataset, models, evaluators,)
+    dataset = None
     
     
 def train(cfg: DictConfig, dataset, models, evaluators):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
-
+    train_step = 0
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
         sample_ind_next = np.random.permutation(len(dataset["obs"]))

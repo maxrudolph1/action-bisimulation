@@ -2,8 +2,7 @@
 beta: 0.01
 learning_rate: 0.0001
 use_grid: True
-# multi_step_path: '/nfs/homes/bisim/ekuo/master-action-bisimulation/results/2024-11-02_14:10:09/multi_step.pt' # non-behavioral, 3000 reset
-multi_step_path: '/nfs/homes/bisim/ekuo/master-action-bisimulation/results/2024-11-03_20:11:10/multi_step.pt' # behavioral, 3000 reset
+multi_step_path: '' 
 run_autoencoder: False
 defaults:
   - networks/cnn@encoder

@@ -7,3 +7,6 @@ log/
 **/*.zip
 runs/
 **/*.pt
+videos/
+**/*.mp4
+**/*.gif

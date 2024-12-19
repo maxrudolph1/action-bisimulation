@@ -18,8 +18,8 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from models.gen_model_nets import GenEncoder
 import stable_baselines3 as sb3
-
-
+import copy
+import imageio
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
     capture_video= False
@@ -31,7 +31,6 @@ def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, ob
             env = Navigate2D(**env_kwargs)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(0)
-
         return env
 
     return thunk
@@ -72,7 +71,6 @@ def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
-
     if sb3.__version__ < "2.0":
         raise ValueError(
             """Ongoing migration: run the following command to install the new dependencies:
@@ -110,6 +108,7 @@ def main(cfg: DictConfig):
     envs = gym.vector.SyncVectorEnv(
         [make_env(env_kwargs=cfg.env) for i in range(cfg.num_envs)]
     )
+    eval_env = make_env(env_kwargs=cfg.env)()
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     if cfg.encoder.path:
@@ -131,6 +130,8 @@ def main(cfg: DictConfig):
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
+    succ_ = np.zeros(50)
+    ep_idx = 0
     obs, _ = envs.reset(seed=cfg.seed)
     for global_step in range(cfg.total_timesteps):
         # ALGO LOGIC: put action logic here
@@ -149,8 +150,12 @@ def main(cfg: DictConfig):
             for info in infos["final_info"]:
                 if info and "episode" in info:
                     print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+                    succ_[ep_idx % 50] = (info['episode']['r'] > -50)
+                    ep_idx += 1
+
                     writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
                     writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                    writer.add_scalar("charts/success_rate", succ_.mean(), global_step)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -189,6 +194,22 @@ def main(cfg: DictConfig):
                     target_network_param.data.copy_(
                         cfg.rl.tau * q_network_param.data + (1.0 - cfg.rl.tau) * target_network_param.data
                     )
+
+        if global_step % cfg.render_freq == 0:
+            frames = []
+            for _ in range(5):
+                obs, _ = eval_env.reset()
+                terminated, truncated = False, False
+                while not (terminated or truncated):
+                    q_values = q_network(torch.Tensor(obs).unsqueeze(0).to(device))
+                    actions = torch.argmax(q_values, dim=1).cpu().numpy().squeeze()
+                    obs, reward, terminated, truncated, infos = eval_env.step(actions)
+                    frames.append(obs)
+            frames = np.array(frames).transpose(0, 2, 3, 1)
+            imageio.mimsave('test.gif', frames, fps=5)
+
+
+
 
     if cfg.save_model:
         model_path = f"runs/{run_name}/{cfg.exp_name}.cleanrl_model"

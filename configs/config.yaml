@@ -1,12 +1,10 @@
 logdir: 'results'
 datasets: [
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p1_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p2_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p3_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p4_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p5_k_steps_10.hdf5',
+  '',
 ]
+dataset: ''
 wandb: False
+wandb_entity: 'maxrudolph'
 seed: 0
 n_epochs: 20
 batch_size: 256

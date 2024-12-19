@@ -54,3 +54,4 @@ encoder:
   activation: "relu"
   layer_norm: false
   output_dim: 64
+  path: null
