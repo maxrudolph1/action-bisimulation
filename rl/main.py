@@ -1,275 +1,217 @@
-import argparse
-import datetime
+# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/dqn/#dqnpy
 import os
-import pprint
-import yaml
+import random
+import time
+from dataclasses import dataclass
+
+import gymnasium as gym
 import numpy as np
 import torch
-# from atari_network import DQN
-# from atari_wrapper import make_atari_env
-from copy import deepcopy
-from tianshou.data import Collector, VectorReplayBuffer, HERVectorReplayBuffer
-from tianshou.policy import DQNPolicy
-from tianshou.policy.modelbased.icm import ICMPolicy
-from tianshou.trainer import offpolicy_trainer
-from tianshou.utils import WandbLogger
-from tianshou.utils.net.discrete import IntrinsicCuriosityModule
-import tianshou as ts
-import gymnasium as gym
-from environments.nav2d.nav2d import Navigate2D
-from models import nets, gen_model_nets
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import tyro
+from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
-
-from omegaconf import DictConfig, OmegaConf
+from environments.nav2d.nav2d_sb3 import Navigate2D
 import hydra
+from omegaconf import DictConfig, OmegaConf
+from models.gen_model_nets import GenEncoder
+import stable_baselines3 as sb3
+
+
+
+def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
+    capture_video= False
+    def thunk():
+        if capture_video:
+            env = Navigate2D(**env_kwargs)
+            env = gym.wrappers.RecordVideo(env, f"videos")
+        else:
+            env = Navigate2D(**env_kwargs)
+        env = gym.wrappers.RecordEpisodeStatistics(env)
+        env.action_space.seed(0)
+
+        return env
+
+    return thunk
+
+
+# ALGO LOGIC: initialize agent here:
+class QNetwork(nn.Module):
+    def __init__(self, env, encoder_cfg):
+        super().__init__()
+        obs_shape = env.single_observation_space.shape
+        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda() 
+        self.output_dim = self.encoder.output_dim
+        self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
+        self.encoder_cfg = encoder_cfg
+        self.obs_shape = obs_shape
+
+    def forward(self, x):
+        x = x.float() / 255.0
+        return self.q_value_head(self.encoder(x))
+    
+    @classmethod
+    def from_encoder_checkpoint(cls, env, encoder_checkpoint_path,):
+        encoder_checkpoint = torch.load(encoder_checkpoint_path)
+        encoder_cfg = encoder_checkpoint.get("cfg")
+        model = cls(env, encoder_cfg)
+        model.encoder.load_state_dict(encoder_checkpoint["state_dict"])
+        return model
+    
+    def freeze_encoder(self):
+        for param in self.encoder.parameters():
+            param.requires_grad = False
+    
+
+def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
+    slope = (end_e - start_e) / duration
+    return max(slope * t + start_e, end_e)
 
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
-    env_lambda = lambda: Navigate2D(cfg.env.num_obstacles, grid_size=cfg.env.grid_size, 
-                                static_goal=True,
-                                obstacle_diameter=cfg.env.obstacle_diameter,)
 
-    env = env_lambda()
+    if sb3.__version__ < "2.0":
+        raise ValueError(
+            """Ongoing migration: run the following command to install the new dependencies:
+            poetry run pip install "stable_baselines3==2.0.0a1"
+            """)
+    assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
+    run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
+    if cfg.use_wandb:
+        import wandb
 
-    train_envs = ts.env.DummyVectorEnv([env_lambda for _ in range(cfg.training_num)])
-    test_envs = ts.env.DummyVectorEnv([env_lambda  for _ in range(10)])
-    
-    cfg.state_shape = env.observation_space.shape or env.observation_space.n
-    cfg.action_shape = env.action_space.shape or env.action_space.n
-    
-    # should be N_FRAMES x H x W
-    print("Observations shape:", cfg.state_shape)
-    print("Actions shape:", cfg.action_shape)
-    
-    # seed
+        wandb.init(
+            project=cfg.wandb_project_name,
+            entity=cfg.wandb_entity,
+            sync_tensorboard=True,
+            config=OmegaConf.to_container(cfg, resolve=True),
+            name=run_name,
+            monitor_gym=True,
+            save_code=True,
+        )
+    writer = SummaryWriter(f"runs/{run_name}")
+    writer.add_text(
+        "hyperparameters",
+        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in OmegaConf.to_container(cfg, resolve=True).items()])),
+    )
+
+    # TRY NOT TO MODIFY: seeding
+    random.seed(cfg.seed)
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
-    
-    # define model
+    torch.backends.cudnn.deterministic = cfg.torch_deterministic
 
-    # net = nets.DQNHER(cfg.state_shape, cfg.action_shape, args=cfg, atoms=1,split_obs=cfg.use_her, device=cfg.device, encoder_path=cfg.pretrained_encoder_path).to(cfg.device)
-    net = gen_model_nets.GenDQNFull(cfg.state_shape, cfg.action_shape, cfg=cfg,).to(cfg.device)
+    device = torch.device("cuda" if torch.cuda.is_available() and cfg.cuda else "cpu")
 
-    if cfg.freeze_encoder:
-        optim = torch.optim.Adam(net.dqn.parameters(), lr=cfg.lr)
-    else:
-        optim = torch.optim.Adam(net.parameters(), lr=cfg.lr)
-
-    
-    # optim = torch.optim.Adam( net.parameters(), lr=cfg.lr)
-    # define policy
-    policy = DQNPolicy(
-        net,
-        optim,
-        cfg.gamma,
-        cfg.n_step,
-        target_update_freq=cfg.target_update_freq
+    # env setup
+    envs = gym.vector.SyncVectorEnv(
+        [make_env(env_kwargs=cfg.env) for i in range(cfg.num_envs)]
     )
+    assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-    if cfg.resume_path:
-        policy.load_state_dict(torch.load(cfg.resume_path, map_location=cfg.device))
-        print("Loaded agent from: ", cfg.resume_path)
-        
-        
-    # replay buffer: `save_last_obs` and `stack_num` can be removed together
-    # when you have enough RAM
-    if not cfg.use_her:
-        buffer = VectorReplayBuffer(
-            cfg.buffer_size,
-            buffer_num=len(train_envs),
-            ignore_obs_next=True,
-
-        )
+    if cfg.encoder.path:
+        q_network = QNetwork.from_encoder_checkpoint(envs, cfg.encoder.path).to(device)
     else:
-        def compute_reward_fn(ag, dg, goal_shape=None):
-            ag = ag.reshape(goal_shape)
-            dg = dg.reshape(goal_shape)
-            
-            rew = -np.ones((ag.shape[0], ag.shape[1]))
-            for i in range(goal_shape[1]):
-                ag_loc = np.where(ag[:,i,...] == 1)
-                dg_loc = np.where(dg[:,i,...] == 1)
-                # print(dg_loc)
-                vec_x = ag_loc[2] == dg_loc[2]
-                vec_y = ag_loc[3] == dg_loc[3]
-                agdg = (vec_x & vec_y)
-                # print(agdg)
-                rew[agdg,i] = 0
+        q_network = QNetwork(envs, encoder_cfg=cfg.encoder).to(device)
 
-            rew = -np.ones((ag.shape[0]* ag.shape[1],))
-            # rew[agdg] = 0
-   
-            return rew
-        
-        buffer = HERVectorReplayBuffer(
-            cfg.buffer_size,
-            len(train_envs),
-            compute_reward_fn=compute_reward_fn,
-            horizon=env.max_timesteps,
-            future_k=2,
-        )
-    # collector
-    
-    def preprocess_her_fn(**kwargs):
-        in_reset = kwargs.keys() == {"obs", "info", "env_id"}
-        if in_reset:
-            return kwargs
-        buffer = kwargs
-        her_buffer = deepcopy(kwargs)
-        final_obs = her_buffer["obs_next"][-1]
-        fake_goal_grid = final_obs[1, :, :]
-        fake_goal_pos = np.where(fake_goal_grid == np.max(fake_goal_grid))
-        
-        
-        her_buffer["obs_next"][:, 2,:,:] = fake_goal_grid
+    optimizer = optim.Adam(q_network.parameters(), lr=cfg.rl.learning_rate)
+    target_network = QNetwork(envs, encoder_cfg=q_network.encoder_cfg).to(device)
+    target_network.load_state_dict(q_network.state_dict())
 
-        # Finds where the agent reaches the new goal the first time
-        reach_goal_idx = np.where([np.all(obs[1,:,:] == obs[2,:,:]) for obs in her_buffer["obs_next"][:]])[0][0]
-        
-        # keep only experience up to the point where the agent reaches the new goal
-        for ele in her_buffer:
-            ele = ele[:reach_goal_idx+1]
-            
-        # update reward and termination
-        her_buffer["rew"][-1] = 0
-        her_buffer["done"][-1] = True
-        
-        # merge the original and HER transitions
-        for key in buffer:
-            if key == 'policy':
-                info_keys = buffer[key].keys()
-                for info_key in info_keys:
-                    buffer[key][info_key] = np.concatenate([buffer[key][info_key], her_buffer[key][info_key]], axis=0)
-            else:
-                buffer[key] = np.concatenate([buffer[key], her_buffer[key]], axis=0)
-        print(buffer["obs_next"].shape)
-        for key in buffer:
-            if key == 'policy':
-                info_keys = buffer[key].keys()
-                for info_key in info_keys:
-                    buffer[key][info_key] = buffer[key][info_key][-10:]
-            else:
-                buffer[key] = buffer[key][-10:]
-                
-        return buffer
-    
-    
-    train_collector = Collector(policy, train_envs, buffer, exploration_noise=True)
-    test_collector = Collector(policy, test_envs, exploration_noise=True)
-
-    # log
-    now = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
-    cfg.algo_name = "dqn_icm" if cfg.icm_lr_scale > 0 else "dqn"
-    log_name = os.path.join(cfg.task, cfg.algo_name, str(cfg.seed), cfg.name + (("_" + now) if cfg.date else ""))
-    log_path = os.path.join(cfg.logdir, log_name)
-
-    # logger
-    if cfg.logger == "wandb":
-        logger = WandbLogger(save_interval=1,name='test' ,  project=cfg.wandb_project, monitor_gym=False, entity=cfg.wandb_entity)
-        
-    writer = SummaryWriter(log_path)
-    writer.add_text("cfg", str(cfg))
-
-    logger.load(writer)
-
-    def save_best_fn(policy):
-        torch.save(policy.state_dict(), os.path.join(log_path, "policy.pth"))
-
-    def stop_fn(mean_rewards):
-        if env.spec.reward_threshold:
-            return mean_rewards >= env.spec.reward_threshold
-        elif "Pong" in cfg.task:
-            return mean_rewards >= 20
-        else:
-            return False
-
-    def train_fn(epoch, env_step):
-        # nature DQN setting, linear decay in the first 1M steps
-        linear_decay_time = 1e5
-        if env_step <= linear_decay_time:
-            eps = cfg.eps_train - env_step / linear_decay_time * \
-                (cfg.eps_train - cfg.eps_train_final)
-        else:
-            eps = cfg.eps_train_final
-
-        policy.set_eps(eps)
-        if env_step % 1000 == 0:
-            logger.write("train/env_step", env_step, {"train/eps": eps})
-
-    def test_fn(epoch, env_step):
-        policy.set_eps(cfg.eps_test)
-
-    def dont_save_fn(epoch, env_step, gradient_step):
-        return "not saved"
-    
-    def save_checkpoint_fn(epoch, env_step, gradient_step):
-        # see also: https://pytorch.org/tutorials/beginner/saving_loading_models.html
-        ckpt_path = os.path.join(log_path, f"checkpoint_{epoch}.pth")
-        torch.save({"model": policy.state_dict()}, ckpt_path)
-        return ckpt_path
-
-    # watch agent's performance
-    def watch():
-        print("Setup test envs ...")
-        policy.eval()
-        policy.set_eps(cfg.eps_test)
-        test_envs.seed(cfg.seed)
-        if cfg.save_buffer_name:
-            print(f"Generate buffer with size {cfg.buffer_size}")
-            buffer = VectorReplayBuffer(
-                cfg.buffer_size,
-                buffer_num=len(test_envs),
-                ignore_obs_next=True,
-                save_only_last_obs=True,
-                stack_num=cfg.frames_stack
-            )
-            collector = Collector(policy, test_envs, buffer, exploration_noise=True)
-            result = collector.collect(n_step=cfg.buffer_size)
-            print(f"Save buffer into {cfg.save_buffer_name}")
-            # Unfortunately, pickle will cause oom with 1M buffer size
-            buffer.save_hdf5(cfg.save_buffer_name)
-        else:
-            print("Testing agent ...")
-            test_collector.reset()
-            result = test_collector.collect(
-                n_episode=cfg.test_num, render=cfg.render
-            )
-        rew = result["rews"].mean()
-        print(f"Mean reward (over {result['n/ep']} episodes): {rew}")
-
-    if cfg.watch:
-        watch()
-        exit(0)
-    cfg.state_shape = list(cfg.state_shape)
-    with open(os.path.join(log_path, "cfg.yaml"), "w") as f:
-        yaml.dump({}, f,)
-
-    # test train_collector and start filling replay buffer
-    train_collector.collect(n_step=cfg.batch_size * cfg.training_num)
-    # trainer
-    result = offpolicy_trainer(
-        policy,
-        train_collector,
-        test_collector,
-        cfg.epoch,
-        cfg.step_per_epoch,
-        cfg.step_per_collect,
-        cfg.episode_per_test, # aka test_num
-        cfg.batch_size,
-        train_fn=train_fn,
-        test_fn=test_fn,
-        save_best_fn=save_best_fn,
-        logger=logger,
-        update_per_step=cfg.update_per_step,
-        test_in_train=False,
-        resume_from_log=cfg.resume_id.lower() != 'none',
-        save_checkpoint_fn=save_checkpoint_fn if cfg.save_models else dont_save_fn,
+    rb = ReplayBuffer(
+        cfg.rl.buffer_size,
+        envs.single_observation_space,
+        envs.single_action_space,
+        device,
+        handle_timeout_termination=False,
     )
+    start_time = time.time()
 
-    pprint.pprint(result)
-    watch()
+    # TRY NOT TO MODIFY: start the game
+    obs, _ = envs.reset(seed=cfg.seed)
+    for global_step in range(cfg.total_timesteps):
+        # ALGO LOGIC: put action logic here
+        epsilon = linear_schedule(cfg.rl.start_epsilon, cfg.rl.end_epsilon, cfg.rl.exploration_fraction * cfg.total_timesteps, global_step)
+        if random.random() < epsilon:
+            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+        else:
+            q_values = q_network(torch.Tensor(obs).to(device))
+            actions = torch.argmax(q_values, dim=1).cpu().numpy()
 
+        # TRY NOT TO MODIFY: execute the game and log data.
+        next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+
+        # TRY NOT TO MODIFY: record rewards for plotting purposes
+        if "final_info" in infos:
+            for info in infos["final_info"]:
+                if info and "episode" in info:
+                    print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+                    writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
+                    writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+
+        # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
+        real_next_obs = next_obs.copy()
+        for idx, trunc in enumerate(truncations):
+            if trunc:
+                real_next_obs[idx] = infos["final_observation"][idx]
+        rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
+
+        # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
+        obs = next_obs
+
+        # ALGO LOGIC: training.
+        if global_step > cfg.rl.learning_starts:
+            if global_step % cfg.rl.train_frequency == 0:
+                data = rb.sample(cfg.rl.batch_size)
+                with torch.no_grad():
+                    target_max, _ = target_network(data.next_observations).max(dim=1)
+                    td_target = data.rewards.flatten() + cfg.rl.gamma * target_max * (1 - data.dones.flatten())
+                old_val = q_network(data.observations).gather(1, data.actions).squeeze()
+                loss = F.mse_loss(td_target, old_val)
+
+                if global_step % 100 == 0:
+                    writer.add_scalar("losses/td_loss", loss, global_step)
+                    writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
+                    print("SPS:", int(global_step / (time.time() - start_time)))
+                    writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+
+                # optimize the model
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            # update target network
+            if global_step % cfg.rl.target_network_frequency == 0:
+                for target_network_param, q_network_param in zip(target_network.parameters(), q_network.parameters()):
+                    target_network_param.data.copy_(
+                        cfg.rl.tau * q_network_param.data + (1.0 - cfg.rl.tau) * target_network_param.data
+                    )
+
+    if cfg.save_model:
+        model_path = f"runs/{run_name}/{cfg.exp_name}.cleanrl_model"
+        torch.save(q_network.state_dict(), model_path)
+        print(f"model saved to {model_path}")
+        from rl.clearnrl_dqn_eval import evaluate
+
+        episodic_returns = evaluate(
+            model_path,
+            make_env,
+            cfg.env_id,
+            eval_episodes=10,
+            run_name=f"{run_name}-eval",
+            Model=QNetwork,
+            device=device,
+            epsilon=0.05,
+        )
+        for idx, episodic_return in enumerate(episodic_returns):
+            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+
+
+    envs.close()
+    writer.close()
 
 if __name__ == "__main__":
     main()

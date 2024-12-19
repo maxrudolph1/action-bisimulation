@@ -4,3 +4,6 @@ outputs/
 wandb/
 results/
 log/
+**/*.zip
+runs/
+**/*.pt

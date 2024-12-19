@@ -1,72 +1,56 @@
 task: "Nav2D-v0"
 algo_name: "dqn"
-seed: 0
-scale_obs: 0
-eps_test: 0.005
-eps_train: 0.9
-eps_train_final: 0.2
-buffer_size: 100000
-lr: 0.0001
-gamma: 0.99
-n_step: 3
-target_update_freq: 500
-epoch: 200
-step_per_epoch: 10000
-step_per_collect: 100
-update_per_step: 0.1
-batch_size: 32
-training_num: 10
-test_num: 10
+seed: 1
 logdir: "log"
-render: 0.0
-date: false
 pretrained_encoder_path: null
-
-# custom args
-episode_per_test: 100
-use_her: false
-dense_reward: false
-name: ""
-
-device: "cuda"  # or "cpu", depending on availability
-frames_stack: 1
-resume_path: null
-save_models: True
+exp_name: "dqn"
 freeze_encoder: false
+
+# eval arguments
+logger: "wandb" 
+wandb_project_name: "nav2d"
+wandb_entity: "maxrudolph"
+capture_video: false
+save_buffer_name: null
+save_model: False
+
+use_wandb: False
+render_freq: 50000
+eval_freq: 1000
+total_timesteps: 500000
+torch_deterministic: True
+cuda: True
+num_envs: 1
+
+
+
 
 env:
   max_timesteps: 50
-  grid_size: 10
+  grid_size: 7
   num_obstacles: 0
   obstacle_diameter: 1
-  static_goal: false
+  static_goal: true
+
+rl: 
+  learning_rate: 0.00025
+  buffer_size: 10000
+  learning_starts: 10000
+  batch_size: 128
+  tau: 1.0
+  gamma: 0.99
+  train_freq: 1
+  start_epsilon: 1.0
+  end_epsilon: 0.05
+  exploration_fraction: 0.5 # the fraction of `total-timesteps` it takes from start_epsilon to go end_epsilon
+  target_network_frequency: 500
+  train_frequency: 10
 
 
 # network arguments
-encoder_args:
-  hidden_layers: [64, 64, 64, 96, 96, 128]
-  num_pooling: 2
+encoder:
+  hidden_layers: [64, 96, 128]
+  num_pooling: 1 # this needs to be at least len(hidden_layers) - 2
   activation: "relu"
   layer_norm: false
-  output_dim: 256
-
-dqn_args:
-  hidden_layers: [256]
-  activation: "relu"
-  layer_norm: false
-  atoms: 1
-
-logger: "wandb" 
-wandb_project: "nav2d"
-wandb_entity: "YOUR_ENTITY"
-watch: false
-save_buffer_name: null
-
-icm_lr_scale: 0.0
-icm_reward_scale: 0.01
-icm_forward_loss_weight: 0.2
-
-state_shape: None
-action_shape: None
-
-resume_id: None
+  output_dim: 64

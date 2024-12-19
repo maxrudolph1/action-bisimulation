@@ -62,20 +62,6 @@ class MultiStep(torch.nn.Module):
         self.forward_model_steps_per_batch = cfg.algos.multi_step.forward_model_steps_per_batch
         self.reset_forward_model_every = cfg.algos.multi_step.reset_forward_model_every
 
-
-    # def batch_forward_model(self, obs, act):
-    #     actions = torch.tensor([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=int).cuda()
-    #     idx = torch.nonzero(obs[:, 1, :,:] + 1)
-    #     action_vecs = actions[act]
-    #     new_locs = torch.clip(idx[:, 1:] + action_vecs, min=0, max=obs.shape[2] - 1)
-    #     moved_idx = idx.clone()
-    #     moved_idx[:, 1:] = new_locs
-    #     next_obs = obs.clone()
-    #     obs_notpresent_idx = torch.nonzero(next_obs[moved_idx[:, 0], 0, moved_idx[:, 1], moved_idx[:, 2]] -1)
-    #     next_obs[moved_idx[obs_notpresent_idx, 0], 1, moved_idx[obs_notpresent_idx, 1], moved_idx[obs_notpresent_idx, 2]] = 1
-    #     next_obs[idx[obs_notpresent_idx, 0], 1, idx[obs_notpresent_idx, 1], idx[obs_notpresent_idx, 2]] = -1
-    #     return next_obs
-
     def share_dependant_models(self, models):
         pass
         # if self.bc_encoder is None:

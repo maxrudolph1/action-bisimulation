@@ -19,12 +19,17 @@ class GenEncoder(torch.nn.Module):
         else:    
             self.output_dim = self.encoder.output_dim
             self.use_output_layer = False
+        self.cfg = cfg
+        self.obs_dim = obs_dim
         
     def forward(self, obs):
         z = self.cnn_encoder(obs)
         if self.use_output_layer:
             z = self.last_layer(z)
         return z
+    
+    def save(self, path):
+        torch.save(dict(obs_dim=self.obs_dim, cfg=self.cfg, state_dict=self.state_dict()), path)
 
 class GenInverseDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, cfg):
