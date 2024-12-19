@@ -59,7 +59,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
             action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))),
                                                                                 (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0) # not equal because we don't have obs_next for the final state
-            if args.k_step_action > 0:
+            if args.k_step_action > 1:
                 k_obs_vals = list()
                 for k in range(2, args.k_step_action + 1):
                     k_obs_vals.append(kaction_buffer[min(i+args.k_step_action, len(kaction_buffer)-1)][0])
@@ -71,26 +71,27 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         for kact, kvalid, kobs, (obs, action, rew, obs_next, done, pos, goal) in zip(action_sequences, kvalid_values, k_obs,  kaction_buffer):
             buffer.append((obs, action, rew, obs_next, done, pos, goal, kact, kvalid, kobs))
 
+    print (f"Worker {idx} done")
     return buffer
 
 
 def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--num-workers", default=32, type=int)
-    # parser.add_argument("--size", type=int, default=10000) # should be 1 mil
-    parser.add_argument("--size", type=int, default=1000000) # should be 1 mil
+    parser.add_argument("--num-workers", default=2, type=int)
+    parser.add_argument("--size", type=int, default=200000) # should be 1 mil
+    # parser.add_argument("--size", type=int, default=1000000) # should be 1 mil
     parser.add_argument("--epsilon", type=float, default=0.5)
     parser.add_argument("--num-obstacles", type=int, default=10)
     parser.add_argument("--obstacle-size", type=int, default=1)
     parser.add_argument("--grid-size", type=int, default=15)
-    parser.add_argument("--k-step-action", type=int, default=0) # number of lookahead steps for the "single step" model
+    parser.add_argument("--k-step-action", type=int, default=10) # number of lookahead steps for the "single step" model
     parser.add_argument("--maze",default=False, action="store_true")
     parser.add_argument("--env-config", default=None)
     parser.add_argument("--env", default="nav2d")
     parser.add_argument("--random-goal", default=False, action="store_true")
     parser.add_argument("--keep-goal-channel", default=False, action="store_true")
-    parser.add_argument("--name", type=str, default="")
+    parser.add_argument("--name", type=str, default="p5")
     parser.add_argument("--save-path", type=str, default=".")
     args = parser.parse_args()
 
@@ -113,6 +114,7 @@ def main():
     buffer = [x for b in buffers for x in b]
     full_path = args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5"
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    print("SAVING TO", full_path)
     with h5py.File(
         args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5", "w"
     ) as f:
@@ -132,5 +134,6 @@ def main():
         f.attrs["cleared_goal_channel"] = not args.keep_goal_channel
         f.attrs["env"] = args.env
         f.attrs["env_config"] = -1 if args.env_config is None else args.env_config
+    print("DONE")
 if __name__ == "__main__":
     main()
