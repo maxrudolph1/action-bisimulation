@@ -16,15 +16,15 @@
 # python main.py algos='[acro]' n_epochs=20 algos.acro.l1_penalty=0.1 algos.acro.dynamic_l1_penalty=False algos.acro.k_steps=3 wandb=True
 # python main.py algos='[acro]' n_epochs=20 algos.acro.l1_penalty=0.001 algos.acro.dynamic_l1_penalty=False algos.acro.k_steps=3 wandb=True
 
-# these are probably the best ones ones
+# these are probably the best ones right now
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.001 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=2 wandb=True # DEFAULT L1
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.01 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=2 wandb=True
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.1 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=2 wandb=True
+
 python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.001 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=3 wandb=True # DEFAULT L1
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.01 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=3 wandb=True
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.1 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=3 wandb=True
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.01 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=3 wandb=True
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.1 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=3 wandb=True
 
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.001 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=2 wandb=True # DEFAULT L1
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.01 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=2 wandb=True
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.1 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=2 wandb=True
-
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.001 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=4 wandb=True # DEFAULT L1
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.01 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=4 wandb=True
-python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.1 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=4 wandb=True
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.001 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=4 wandb=True # DEFAULT L1
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.01 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=4 wandb=True
+# python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.1 algos.acro.dynamic_l1_penalty=True algos.acro.k_steps=4 wandb=True

@@ -4,7 +4,6 @@ import shutil
 import sys
 from argparse import ArgumentParser
 from collections import deque
-import time
 import h5py
 import tqdm
 from matplotlib import cm
@@ -84,12 +83,13 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
-    log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-	wandb_name = None
+    wandb_name = None
     if cfg.wandb:
+        name = f"acro_k_{cfg.algos.acro.k_steps-1}_{cur_date_time}"
         # name = f"acro_sweeps_k{cfg.algos.acro.k_steps-1}_l1_{cfg.algos.acro.l1_penalty}_dynamic_{cfg.algos.acro.dynamic_l1_penalty}"
-        name = f"gamma_sweeps_bisim_gamma{cfg.algos.multi_step.gamma}"
+        # name = f"gamma_sweeps_bisim_gamma{cfg.algos.multi_step.gamma}"
 
         # wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
         wandb.init(entity='evan-kuo-edu', project="nav2d", name=name, config=OmegaConf.to_container(cfg),)
@@ -100,14 +100,7 @@ def main(cfg: DictConfig):
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
 
-    # dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
-    dataset_paths = [
-        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p1_k_steps_10.hdf5',
-        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p2_k_steps_10.hdf5',
-        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p3_k_steps_10.hdf5',
-        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p4_k_steps_10.hdf5',
-        '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p5_k_steps_10.hdf5',
-    ]
+    # A bit hard coded at the moment. Future fix
     obs_shape = (3, 15, 15)
     act_shape = 4
 
@@ -115,17 +108,17 @@ def main(cfg: DictConfig):
     models = initialize_dependant_models(models)
 
     train_step = 0
-    for dataset_file in dataset_paths:
+    for dataset_file in cfg.datasets:
         dataset, obs_shape, act_shape = load_dataset(dataset_file)
-        train_step = train(cfg, dataset, models, train_step, wandb_name)
+        print(f"FINISHED LOADING {dataset_file}")
+
+        train_step = train(cfg, dataset, models, train_step, wandb_name, cur_date_time)
         dataset = None
 
 
-def train(cfg: DictConfig, dataset, models, ts, wandb_name=None):
+def train(cfg: DictConfig, dataset, models, train_step, wandb_name, cur_date_time):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
-    # train_step = 0
-    train_step = ts
 
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
@@ -145,8 +138,8 @@ def train(cfg: DictConfig, dataset, models, ts, wandb_name=None):
 
             train_step += 1
 
-    time_str = ((wandb_name + "_") if wandb_name not None else "") + ("ts_" + ts + "_") + datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    logdir = os.path.join(cfg.logdir, time_str)
+    log_name = ((wandb_name + "_") if wandb_name is not None else cur_date_time) + ("ts_" + str(train_step))
+    logdir = os.path.join(cfg.logdir, log_name)
     os.makedirs(logdir)
     for model_name, model in models.items():
         model.save(logdir + f"/{model_name}.pt")
