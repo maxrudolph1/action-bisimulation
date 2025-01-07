@@ -6,10 +6,48 @@ from multiprocessing import Pool, RLock
 import h5py
 import os
 
+import pdb
+
 from environments.nav2d.nav2d import Navigate2D
 # from nav2d_representation.nav2d.nav2d_po import Navigate2DPO
 # import gymnasium as gym
 # import nav2d
+
+
+def printObs(obs):
+    # ANSI color codes
+    COLORS = {
+        'O': "\033[32m",   # Green for O (1 from obstacles)
+        'X': "\033[31m",   # Red for X (1 from agent)
+        '-': "\033[33m",   # Yellow for - (-1 from either grid)
+        '0': "\033[37m",   # White for 0
+    }
+    RESET = "\033[0m"
+
+    # Function to merge grids and format for printing
+    def merge_and_format_grids(grid1, grid2):
+        merged_grid = np.full(grid1.shape, '0', dtype=object)
+
+        # Merging logic
+        for i in range(grid1.shape[0]):
+            for j in range(grid1.shape[1]):
+                if grid1[i, j] == 1:  # grid1's 'O' takes precedence
+                    merged_grid[i, j] = 'O'
+                elif grid2[i, j] == 1:  # grid2's 'X' comes next
+                    merged_grid[i, j] = 'X'
+                elif grid1[i, j] == -1 or grid2[i, j] == -1:  # Any -1 becomes '-'
+                    merged_grid[i, j] = '-'
+                else:  # Otherwise, it's 0
+                    merged_grid[i, j] = '0'
+
+        # Create a formatted grid with colors
+        formatted_grid = "\n".join([
+            " ".join(f"{COLORS[cell]}{cell}{RESET}" for cell in row)
+            for row in merged_grid
+        ])
+        return formatted_grid
+
+    print(merge_and_format_grids(obs[0], obs[1]))
 
 
 def collect(num, idx, seed, epsilon, num_obstacles, args):
@@ -26,18 +64,22 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
     buffer = []
 
     global_step = 0
-    pbar = tqdm(total=num, position=idx)
+    pbar = tqdm(total=num, position=idx) # progress bar
     while global_step < num:
-        obs= env.reset()
+        obs = env.reset()
         done = False
         recompute = True
         kaction_buffer = list()
         actions = list()
+        print("NEW EPISODE")
+        print("Global step:", global_step, "Num:", num)
         while not done and global_step < num:
             if np.random.rand() < epsilon:
+                print("RANDOM ACTION")
                 action = env.action_space.sample()
                 recompute = True
             else:
+                print("OPTIMAL ACTION")
                 if recompute:
                     optimal_actions = env.find_path()
                 action = optimal_actions.pop(0)
@@ -45,11 +87,19 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
             obs_next, rew, done, info = env.step(action)
 
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
+            print('='*18)
+            print("added the following to kaction_buffer")
             actions.append(action)
+            printObs(obs)
+            print(action)
+            printObs(obs_next)
+            print('='*18)
             obs = obs_next
             global_step += 1
             pbar.update(1)
 
+        # print("LEN KACTION BUFFER", len(kaction_buffer))
+        # print("LEN ACTIONS", len(actions))
         # create length k seqeuences of actions
         action_sequences = list()
         kvalid_values = list()
@@ -58,17 +108,60 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         for i in range(len(kaction_buffer)):
             action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))),
                                                                                 (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
+            print("action_sequences", action_sequences[-1])
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0) # not equal because we don't have obs_next for the final state
+            print("kvalid_values", kvalid_values[-1])
             if args.k_step_action > 1:
                 k_obs_vals = list()
                 for k in range(2, args.k_step_action + 1):
-                    k_obs_vals.append(kaction_buffer[min(i+args.k_step_action, len(kaction_buffer)-1)][0])
+                    # tmpIdx = min(i+args.k_step_action, len(kaction_buffer)-1)
+                    tmpIdx = min(i+k, len(kaction_buffer)-1)
+                    elem = kaction_buffer[tmpIdx][0]
+                    # pdb.set_trace()
+
+                    # print('-')
+                    # printObs(elem)
+
+                    # print("elem", elem.shape, "type", type(elem))
+                    k_obs_vals.append(elem)
                 k_obs_vals = np.stack(k_obs_vals, axis=0)
+                # pdb.set_trace() # NOTE: GOTTA CHECK HERE because it seems that the elems are correct, but the stuff in k_obs_vals is not
                 k_obs.append(k_obs_vals)
+                # print('STUFF IN K_OBS || ' * 40)
+                # for x in k_obs_vals:
+                #     printObs(x)
+                #     print('-'*5)
+                # NOTE: This stuff seems to be correct up to here?
+
+                for x in k_obs_vals:
+                    print(i, "k_obs_vals equal?", np.array_equal(x, elem))
+                # NOTE: Appears that this is good in the beginnign cuz their all different and then it gets worse every iteration????? idk why tho
+                # print("k_obs_vals", k_obs_vals.shape)
             else:
                 k_obs.append(np.zeros(1)) # unused
 
+        for i in range(5):
+            print('<>'*18)
+        # print(type(action_sequences))
+        # print(type(kvalid_values))
+        # print(type(k_obs))
+        # print(type(kaction_buffer))
+        # print("LEN ACTION SEQUENCES", len(action_sequences))
+        # print("LEN KVALID VALUES", len(kvalid_values))
+        # print("LEN K_OBS", len(k_obs))
+        # print("LEN KACTION BUFFER", len(kaction_buffer))
         for kact, kvalid, kobs, (obs, action, rew, obs_next, done, pos, goal) in zip(action_sequences, kvalid_values, k_obs,  kaction_buffer):
+            print('||'*20)
+            printObs(obs)
+            print(action)
+            printObs(obs_next)
+            print("kact", kact)
+            print("kvalid", kvalid)
+            print("kobs.shape", kobs.shape)
+            print(pos, goal)
+            print("LEN BUFFER", len(buffer))
+            for x in kobs:
+                print("everything in kobs is equal?", np.array_equal(x, kobs[0]))
             buffer.append((obs, action, rew, obs_next, done, pos, goal, kact, kvalid, kobs))
 
     print (f"Worker {idx} done")
@@ -78,39 +171,53 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--num-workers", default=2, type=int)
-    parser.add_argument("--size", type=int, default=200000) # should be 1 mil
+    parser.add_argument("--num-workers", default=1, type=int) # default is 2
+    parser.add_argument("--size", type=int, default=10) # test size
+    # parser.add_argument("--size", type=int, default=200000) # should be 1 mil
     # parser.add_argument("--size", type=int, default=1000000) # should be 1 mil
     parser.add_argument("--epsilon", type=float, default=0.5)
-    parser.add_argument("--num-obstacles", type=int, default=10)
+    parser.add_argument("--num-obstacles", type=int, default=3)
+    # parser.add_argument("--num-obstacles", type=int, default=10)
     parser.add_argument("--obstacle-size", type=int, default=1)
     parser.add_argument("--grid-size", type=int, default=15)
-    parser.add_argument("--k-step-action", type=int, default=10) # number of lookahead steps for the "single step" model
+    parser.add_argument("--k-step-action", type=int, default=8) # number of lookahead steps for the "single step" model
+    # parser.add_argument("--k-step-action", type=int, default=10) # number of lookahead steps for the "single step" model
     parser.add_argument("--maze",default=False, action="store_true")
     parser.add_argument("--env-config", default=None)
     parser.add_argument("--env", default="nav2d")
     parser.add_argument("--random-goal", default=False, action="store_true")
     parser.add_argument("--keep-goal-channel", default=False, action="store_true")
-    parser.add_argument("--name", type=str, default="p5")
+    parser.add_argument("--name", type=str, default="t1")
     parser.add_argument("--save-path", type=str, default=".")
     args = parser.parse_args()
 
 
-    with Pool(args.num_workers, initargs=(RLock(),), initializer=tqdm.set_lock) as p:
-        buffers = p.starmap(
-            collect,
-            [
-                (
-                    args.size // args.num_workers,
-                    i,
-                    args.seed,
-                    args.epsilon,
-                    args.num_obstacles,
-                    args,
-                )
-                for i in range(args.num_workers)
-            ],
+    # with Pool(args.num_workers, initargs=(RLock(),), initializer=tqdm.set_lock) as p:
+    #     buffers = p.starmap(
+    #         collect,
+    #         [
+    #             (
+    #                 args.size // args.num_workers,
+    #                 i,
+    #                 args.seed,
+    #                 args.epsilon,
+    #                 args.num_obstacles,
+    #                 args,
+    #             )
+    #             for i in range(args.num_workers)
+    #         ],
+    #     )
+    buffers = [
+        collect(
+            args.size // args.num_workers,
+            i,
+            args.seed,
+            args.epsilon,
+            args.num_obstacles,
+            args,
         )
+        for i in range(args.num_workers)
+    ]
     buffer = [x for b in buffers for x in b]
     full_path = args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5"
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -135,5 +242,7 @@ def main():
         f.attrs["env"] = args.env
         f.attrs["env_config"] = -1 if args.env_config is None else args.env_config
     print("DONE")
+
+
 if __name__ == "__main__":
     main()
