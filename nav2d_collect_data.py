@@ -72,7 +72,6 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         kaction_buffer = list()
         actions = list()
         print("NEW EPISODE")
-        print("Global step:", global_step, "Num:", num)
         while not done and global_step < num:
             if np.random.rand() < epsilon:
                 print("RANDOM ACTION")
@@ -84,10 +83,12 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
                     optimal_actions = env.find_path()
                 action = optimal_actions.pop(0)
                 recompute = False
+            print("Global step:", global_step, "Num:", num)
             obs_next, rew, done, info = env.step(action)
 
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
             print('='*18)
+            print("POS:", info["pos"], "GOAL:", info["goal"], "DONE:", done)
             print("added the following to kaction_buffer")
             actions.append(action)
             printObs(obs)
@@ -106,15 +107,25 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         k_obs = list()
 
         for i in range(len(kaction_buffer)):
-            action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))),
-                                                                                (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
+            # GET THE SEQUENCE OF ACTIONS FROM THE ACTION BUFFER
+            # action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))),
+            #                                                                     (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
+            padWidth = (0, max(0, i+args.k_step_action - len(kaction_buffer)))
+            arrToPad = list(range(i, min(i+args.k_step_action, len(kaction_buffer))))
+            print('#'*50)
+            print("Pad width", padWidth)
+            print(arrToPad)
+            tmpiter = np.pad(arrToPad, padWidth)
+            print(tmpiter)
+            action_sequences.append([kaction_buffer[kidx][1] for kidx in tmpiter])  # get the action from the kaction buffer
+
             print("action_sequences", action_sequences[-1])
-            kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0) # not equal because we don't have obs_next for the final state
+            kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0)  # not >= because we don't have obs_next for the final state
             print("kvalid_values", kvalid_values[-1])
             if args.k_step_action > 1:
                 k_obs_vals = list()
                 for k in range(2, args.k_step_action + 1):
-                    # tmpIdx = min(i+args.k_step_action, len(kaction_buffer)-1)
+                    # tmpIdx = min(i+args.k_step_action, len(kaction_buffer)-1) # FIX: needed fix finished here
                     tmpIdx = min(i+k, len(kaction_buffer)-1)
                     elem = kaction_buffer[tmpIdx][0]
                     # pdb.set_trace()
@@ -141,7 +152,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
                 k_obs.append(np.zeros(1)) # unused
 
         for i in range(5):
-            print('<>'*18)
+            print('<>'*50)
         # print(type(action_sequences))
         # print(type(kvalid_values))
         # print(type(k_obs))
@@ -150,7 +161,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         # print("LEN KVALID VALUES", len(kvalid_values))
         # print("LEN K_OBS", len(k_obs))
         # print("LEN KACTION BUFFER", len(kaction_buffer))
-        for kact, kvalid, kobs, (obs, action, rew, obs_next, done, pos, goal) in zip(action_sequences, kvalid_values, k_obs,  kaction_buffer):
+        for kact, kvalid, kobs, (obs, action, rew, obs_next, done, pos, goal) in zip(action_sequences, kvalid_values, k_obs, kaction_buffer):
             print('||'*20)
             printObs(obs)
             print(action)
