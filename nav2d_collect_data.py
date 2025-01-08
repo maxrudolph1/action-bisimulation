@@ -89,7 +89,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
             print('='*18)
             print("POS:", info["pos"], "GOAL:", info["goal"], "DONE:", done)
-            print("added the following to kaction_buffer")
+            print("added the following to kaction_buffer {OBS, ACTION, OBS_NEXT} len(kaction_buffer)", len(kaction_buffer))
             actions.append(action)
             printObs(obs)
             print(action)
@@ -118,8 +118,8 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
             tmpiter = np.pad(arrToPad, padWidth)
             print(tmpiter)
             action_sequences.append([kaction_buffer[kidx][1] for kidx in tmpiter])  # get the action from the kaction buffer
-
             print("action_sequences", action_sequences[-1])
+
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0)  # not >= because we don't have obs_next for the final state
             print("kvalid_values", kvalid_values[-1])
             if args.k_step_action > 1:
@@ -135,6 +135,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 
                     # print("elem", elem.shape, "type", type(elem))
                     k_obs_vals.append(elem)
+                    print(f"added kaction_buffer {tmpIdx}th obs to k_obs_vals")
                 k_obs_vals = np.stack(k_obs_vals, axis=0)
                 # pdb.set_trace() # NOTE: GOTTA CHECK HERE because it seems that the elems are correct, but the stuff in k_obs_vals is not
                 k_obs.append(k_obs_vals)
