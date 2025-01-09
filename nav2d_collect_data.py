@@ -71,30 +71,30 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         recompute = True
         kaction_buffer = list()
         actions = list()
-        print("NEW EPISODE")
+        # print("NEW EPISODE")
         while not done and global_step < num:
             if np.random.rand() < epsilon:
-                print("RANDOM ACTION")
+                # print("RANDOM ACTION")
                 action = env.action_space.sample()
                 recompute = True
             else:
-                print("OPTIMAL ACTION")
+                # print("OPTIMAL ACTION")
                 if recompute:
                     optimal_actions = env.find_path()
                 action = optimal_actions.pop(0)
                 recompute = False
-            print("Global step:", global_step, "Num:", num)
+            # print("Global step:", global_step, "Num:", num)
             obs_next, rew, done, info = env.step(action)
 
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
-            print('='*18)
-            print("POS:", info["pos"], "GOAL:", info["goal"], "DONE:", done)
-            print("added the following to kaction_buffer {OBS, ACTION, OBS_NEXT} len(kaction_buffer)", len(kaction_buffer))
+            # print('='*18)
+            # print("POS:", info["pos"], "GOAL:", info["goal"], "DONE:", done)
+            # print("added the following to kaction_buffer {OBS, ACTION, OBS_NEXT} len(kaction_buffer)", len(kaction_buffer))
             actions.append(action)
-            printObs(obs)
-            print(action)
-            printObs(obs_next)
-            print('='*18)
+            # printObs(obs)
+            # print("action:", action)
+            # printObs(obs_next)
+            # print('='*18)
             obs = obs_next
             global_step += 1
             pbar.update(1)
@@ -112,48 +112,41 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
             #                                                                     (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
             padWidth = (0, max(0, i+args.k_step_action - len(kaction_buffer)))
             arrToPad = list(range(i, min(i+args.k_step_action, len(kaction_buffer))))
-            print('#'*50)
-            print("Pad width", padWidth)
-            print(arrToPad)
+            # print('#'*50)
+            # print("Pad width", padWidth)
+            # print(arrToPad)
             tmpiter = np.pad(arrToPad, padWidth)
-            print(tmpiter)
+            # print(tmpiter)
             action_sequences.append([kaction_buffer[kidx][1] for kidx in tmpiter])  # get the action from the kaction buffer
-            print("action_sequences", action_sequences[-1])
+            # print("action_sequences", action_sequences[-1])
 
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0)  # not >= because we don't have obs_next for the final state
-            print("kvalid_values", kvalid_values[-1])
+            # print("kvalid_values", kvalid_values[-1])
             if args.k_step_action > 1:
+                # shorthand
+                # k_obs.append(np.stack([kaction_buffer[min(i+k, len(kaction_buffer) - 1)][0] for k in range(2, args.k_step_action + 1)], axis=0))
+
+                # longhand
                 k_obs_vals = list()
-                for k in range(2, args.k_step_action + 1):
+                # for k in range(2, args.k_step_action + 1): # diff for k (starts at 2 = one after obs_next) {NOTE: THIS IS THE ORIGINAL}
+                for k in range(1, args.k_step_action + 1): # diff for k {NOTE: THIS ONE STARTS AT 1, so OBS_NEXT}
                     # tmpIdx = min(i+args.k_step_action, len(kaction_buffer)-1) # FIX: needed fix finished here
                     tmpIdx = min(i+k, len(kaction_buffer)-1)
                     elem = kaction_buffer[tmpIdx][0]
-                    # pdb.set_trace()
-
-                    # print('-')
-                    # printObs(elem)
-
-                    # print("elem", elem.shape, "type", type(elem))
                     k_obs_vals.append(elem)
-                    print(f"added kaction_buffer {tmpIdx}th obs to k_obs_vals")
+                    # print(f"added kaction_buffer {tmpIdx}th obs to k_obs_vals")
                 k_obs_vals = np.stack(k_obs_vals, axis=0)
                 # pdb.set_trace() # NOTE: GOTTA CHECK HERE because it seems that the elems are correct, but the stuff in k_obs_vals is not
                 k_obs.append(k_obs_vals)
-                # print('STUFF IN K_OBS || ' * 40)
                 # for x in k_obs_vals:
-                #     printObs(x)
-                #     print('-'*5)
-                # NOTE: This stuff seems to be correct up to here?
-
-                for x in k_obs_vals:
-                    print(i, "k_obs_vals equal?", np.array_equal(x, elem))
+                    # print(i, "k_obs_vals equal?", np.array_equal(x, elem))
                 # NOTE: Appears that this is good in the beginnign cuz their all different and then it gets worse every iteration????? idk why tho
                 # print("k_obs_vals", k_obs_vals.shape)
             else:
                 k_obs.append(np.zeros(1)) # unused
 
-        for i in range(5):
-            print('<>'*50)
+        # for i in range(5):
+        #     print('<>'*50)
         # print(type(action_sequences))
         # print(type(kvalid_values))
         # print(type(k_obs))
@@ -163,17 +156,21 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         # print("LEN K_OBS", len(k_obs))
         # print("LEN KACTION BUFFER", len(kaction_buffer))
         for kact, kvalid, kobs, (obs, action, rew, obs_next, done, pos, goal) in zip(action_sequences, kvalid_values, k_obs, kaction_buffer):
-            print('||'*20)
-            printObs(obs)
-            print(action)
-            printObs(obs_next)
-            print("kact", kact)
-            print("kvalid", kvalid)
-            print("kobs.shape", kobs.shape)
-            print(pos, goal)
-            print("LEN BUFFER", len(buffer))
-            for x in kobs:
-                print("everything in kobs is equal?", np.array_equal(x, kobs[0]))
+            # print('||'*20)
+            # printObs(obs)
+            # print(action)
+            # printObs(obs_next)
+            # print("kact", kact)
+            # print("kvalid", kvalid)
+            # print("kobs.shape", kobs.shape)
+            # print("KOBS[0]")
+            # printObs(kobs[0])
+            # print("KOBS[1]")
+            # printObs(kobs[1])
+            # print(pos, goal)
+            # print("LEN BUFFER", len(buffer))
+            # for x in kobs:
+            #     print("everything in kobs is equal?", np.array_equal(x, kobs[0]))
             buffer.append((obs, action, rew, obs_next, done, pos, goal, kact, kvalid, kobs))
 
     print (f"Worker {idx} done")
@@ -182,10 +179,10 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--num-workers", default=1, type=int) # default is 2
-    parser.add_argument("--size", type=int, default=10) # test size
-    # parser.add_argument("--size", type=int, default=200000) # should be 1 mil
+    parser.add_argument("--seed", default=11, type=int)
+    parser.add_argument("--num-workers", default=5, type=int) # default is 2
+    # parser.add_argument("--size", type=int, default=10) # test size
+    parser.add_argument("--size", type=int, default=500000) # should be 1 mil
     # parser.add_argument("--size", type=int, default=1000000) # should be 1 mil
     parser.add_argument("--epsilon", type=float, default=0.5)
     parser.add_argument("--num-obstacles", type=int, default=3)
@@ -199,37 +196,39 @@ def main():
     parser.add_argument("--env", default="nav2d")
     parser.add_argument("--random-goal", default=False, action="store_true")
     parser.add_argument("--keep-goal-channel", default=False, action="store_true")
-    parser.add_argument("--name", type=str, default="t1")
+    parser.add_argument("--name", type=str, default="v2d2")
     parser.add_argument("--save-path", type=str, default=".")
     args = parser.parse_args()
 
 
-    # with Pool(args.num_workers, initargs=(RLock(),), initializer=tqdm.set_lock) as p:
-    #     buffers = p.starmap(
-    #         collect,
-    #         [
-    #             (
-    #                 args.size // args.num_workers,
-    #                 i,
-    #                 args.seed,
-    #                 args.epsilon,
-    #                 args.num_obstacles,
-    #                 args,
-    #             )
-    #             for i in range(args.num_workers)
-    #         ],
-    #     )
-    buffers = [
-        collect(
-            args.size // args.num_workers,
-            i,
-            args.seed,
-            args.epsilon,
-            args.num_obstacles,
-            args,
+    with Pool(args.num_workers, initargs=(RLock(),), initializer=tqdm.set_lock) as p:
+        buffers = p.starmap(
+            collect,
+            [
+                (
+                    args.size // args.num_workers,
+                    i,
+                    args.seed,
+                    args.epsilon,
+                    args.num_obstacles,
+                    args,
+                )
+                for i in range(args.num_workers)
+            ],
         )
-        for i in range(args.num_workers)
-    ]
+
+    # buffers = [
+    #     collect(
+    #         args.size // args.num_workers,
+    #         i,
+    #         args.seed,
+    #         args.epsilon,
+    #         args.num_obstacles,
+    #         args,
+    #     )
+    #     for i in range(args.num_workers)
+    # ]
+
     buffer = [x for b in buffers for x in b]
     full_path = args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5"
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
