@@ -14,6 +14,7 @@ from environments.nav2d.nav2d import Navigate2D
 # import nav2d
 
 
+# NOTE: ONLY USED FOR DEBUGGING
 def printObs(obs):
     # ANSI color codes
     COLORS = {
@@ -71,36 +72,23 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         recompute = True
         kaction_buffer = list()
         actions = list()
-        # print("NEW EPISODE")
         while not done and global_step < num:
             if np.random.rand() < epsilon:
-                # print("RANDOM ACTION")
                 action = env.action_space.sample()
                 recompute = True
             else:
-                # print("OPTIMAL ACTION")
                 if recompute:
                     optimal_actions = env.find_path()
                 action = optimal_actions.pop(0)
                 recompute = False
-            # print("Global step:", global_step, "Num:", num)
             obs_next, rew, done, info = env.step(action)
 
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
-            # print('='*18)
-            # print("POS:", info["pos"], "GOAL:", info["goal"], "DONE:", done)
-            # print("added the following to kaction_buffer {OBS, ACTION, OBS_NEXT} len(kaction_buffer)", len(kaction_buffer))
             actions.append(action)
-            # printObs(obs)
-            # print("action:", action)
-            # printObs(obs_next)
-            # print('='*18)
             obs = obs_next
             global_step += 1
             pbar.update(1)
 
-        # print("LEN KACTION BUFFER", len(kaction_buffer))
-        # print("LEN ACTIONS", len(actions))
         # create length k seqeuences of actions
         action_sequences = list()
         kvalid_values = list()
@@ -112,13 +100,8 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
             #                                                                     (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
             padWidth = (0, max(0, i+args.k_step_action - len(kaction_buffer)))
             arrToPad = list(range(i, min(i+args.k_step_action, len(kaction_buffer))))
-            # print('#'*50)
-            # print("Pad width", padWidth)
-            # print(arrToPad)
             tmpiter = np.pad(arrToPad, padWidth)
-            # print(tmpiter)
             action_sequences.append([kaction_buffer[kidx][1] for kidx in tmpiter])  # get the action from the kaction buffer
-            # print("action_sequences", action_sequences[-1])
 
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0)  # not >= because we don't have obs_next for the final state
             # print("kvalid_values", kvalid_values[-1])
@@ -134,43 +117,12 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
                     tmpIdx = min(i+k, len(kaction_buffer)-1)
                     elem = kaction_buffer[tmpIdx][0]
                     k_obs_vals.append(elem)
-                    # print(f"added kaction_buffer {tmpIdx}th obs to k_obs_vals")
                 k_obs_vals = np.stack(k_obs_vals, axis=0)
-                # pdb.set_trace() # NOTE: GOTTA CHECK HERE because it seems that the elems are correct, but the stuff in k_obs_vals is not
                 k_obs.append(k_obs_vals)
-                # for x in k_obs_vals:
-                    # print(i, "k_obs_vals equal?", np.array_equal(x, elem))
-                # NOTE: Appears that this is good in the beginnign cuz their all different and then it gets worse every iteration????? idk why tho
-                # print("k_obs_vals", k_obs_vals.shape)
             else:
                 k_obs.append(np.zeros(1)) # unused
 
-        # for i in range(5):
-        #     print('<>'*50)
-        # print(type(action_sequences))
-        # print(type(kvalid_values))
-        # print(type(k_obs))
-        # print(type(kaction_buffer))
-        # print("LEN ACTION SEQUENCES", len(action_sequences))
-        # print("LEN KVALID VALUES", len(kvalid_values))
-        # print("LEN K_OBS", len(k_obs))
-        # print("LEN KACTION BUFFER", len(kaction_buffer))
         for kact, kvalid, kobs, (obs, action, rew, obs_next, done, pos, goal) in zip(action_sequences, kvalid_values, k_obs, kaction_buffer):
-            # print('||'*20)
-            # printObs(obs)
-            # print(action)
-            # printObs(obs_next)
-            # print("kact", kact)
-            # print("kvalid", kvalid)
-            # print("kobs.shape", kobs.shape)
-            # print("KOBS[0]")
-            # printObs(kobs[0])
-            # print("KOBS[1]")
-            # printObs(kobs[1])
-            # print(pos, goal)
-            # print("LEN BUFFER", len(buffer))
-            # for x in kobs:
-            #     print("everything in kobs is equal?", np.array_equal(x, kobs[0]))
             buffer.append((obs, action, rew, obs_next, done, pos, goal, kact, kvalid, kobs))
 
     print (f"Worker {idx} done")
@@ -217,6 +169,7 @@ def main():
             ],
         )
 
+    # NON MULTI-PROCESSING VERSION
     # buffers = [
     #     collect(
     #         args.size // args.num_workers,
