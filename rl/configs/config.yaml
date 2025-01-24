@@ -8,8 +8,9 @@ freeze_encoder: false
 
 # eval arguments
 logger: "wandb" 
-wandb_project_name: "nav2d"
-wandb_entity: "maxrudolph"
+wandb_project_name: "nav2d_rl"
+# wandb_entity: "maxrudolph"
+wandb_entity: "rhearai-university-of-texas-at-austin"
 capture_video: false
 save_buffer_name: null
 save_model: False

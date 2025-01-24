@@ -21,6 +21,9 @@ import stable_baselines3 as sb3
 import copy
 import imageio
 
+
+# this sets up the nav2d env
+# what is record video for?
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
     capture_video= False
     def thunk():
@@ -37,19 +40,38 @@ def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, ob
 
 
 # ALGO LOGIC: initialize agent here:
-class QNetwork(nn.Module):
+class QNetwork(nn.Module): 
     def __init__(self, env, encoder_cfg):
         super().__init__()
         obs_shape = env.single_observation_space.shape
-        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda() 
+        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda() # obs -> latent?
         self.output_dim = self.encoder.output_dim
-        self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
+        self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n) 
         self.encoder_cfg = encoder_cfg
         self.obs_shape = obs_shape
 
     def forward(self, x):
+        # #original code
         x = x.float() / 255.0
-        return self.q_value_head(self.encoder(x))
+        return self.q_value_head(self.encoder(x)) ## there's some errror here rn
+        # #extracted version:
+        # print(f"encoder.output_dim: {self.encoder.output_dim}")
+        # temp = self.encoder(x)
+        # print(f"Encoder output shape: {temp.shape}")
+        # if self.encoder.use_output_layer:
+        #     temp = self.encoder.last_layer(temp)
+        #     print(f"Output after last layer: {temp.shape}")
+        # return temp
+
+
+    
+
+
+    '''
+    self.encoder(x) : output tensor
+    self.q_value_head : linear layer -> 
+
+    '''
     
     @classmethod
     def from_encoder_checkpoint(cls, env, encoder_checkpoint_path,):
@@ -69,6 +91,7 @@ def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
     return max(slope * t + start_e, end_e)
 
 
+# training loop is here
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
     if sb3.__version__ < "2.0":
@@ -161,7 +184,8 @@ def main(cfg: DictConfig):
         real_next_obs = next_obs.copy()
         for idx, trunc in enumerate(truncations):
             if trunc:
-                real_next_obs[idx] = infos["final_observation"][idx]
+                # real_next_obs[idx] = infos["final_observation"][idx]
+                real_next_obs[idx] = infos["terminal_observation"][idx]
         rb.add(obs, real_next_obs, actions, rewards, terminations, infos)
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
