@@ -1,10 +1,12 @@
 logdir: 'results'
 datasets: [
-  '',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_4.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s5_e0.5_size1000000__k_steps_4.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s7_e0.5_size1000000__k_steps_4.hdf5',
 ]
-dataset: ''
+name: 'default_run_name'
 wandb: False
-wandb_entity: 'maxrudolph'
+wandb_entity: 'evan_kuo_edu'
 seed: 0
 n_epochs: 20
 batch_size: 256

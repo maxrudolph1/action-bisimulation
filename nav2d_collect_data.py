@@ -85,7 +85,7 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("--seed", default=0, type=int)
+    parser.add_argument("--seed", default=7, type=int)
     parser.add_argument("--num-workers", default=16, type=int)
     parser.add_argument("--size", type=int, default=1000000)
     parser.add_argument("--epsilon", type=float, default=0.5)

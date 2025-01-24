@@ -39,6 +39,7 @@ def load_dataset(dataset_path):
 
     obs_shape = dataset["obs"][0].shape
     act_shape = dataset["action"].max() + 1
+    print("===== Finished loading dataset", dataset_path)
     return dataset, obs_shape, act_shape
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):
@@ -70,26 +71,38 @@ def log_to_wandb(cfg, evaluators, logs, samples, train_step):
             
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
-    log_path = cfg.logdir + ("_" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    wandb_name = None
     if cfg.wandb: 
-        wandb.init(entity=cfg.wandb_entity, project="nav2d", config=OmegaConf.to_container(cfg),)
-        
+        name = f"{cfg.name}_{cur_date_time}"
+        wandb.init(entity=cfg.wandb_entity, project="nav2d", name=name, config=OmegaConf.to_container(cfg),)
+
+        wandb_name = wandb.run.name
+        print("NOW RUNNING:", wandb_name)
+
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
-    dataset, obs_shape, act_shape = load_dataset(cfg.dataset)
-    print(f"FINISHED LOADING {cfg.dataset}")
-    
+
+    # loading just for the shapes
+    dataset, obs_shape, act_shape = load_dataset(cfg.datasets[0])
+
     models, evaluators = create_models(cfg, obs_shape, act_shape)
     models = initialize_dependant_models(models)
-    
-    train_step = train(cfg, dataset, models, evaluators,)
-    dataset = None
-    
-    
-def train(cfg: DictConfig, dataset, models, evaluators):
+
+    train_step = 0
+    for dataset_file in cfg.datasets:
+        dataset, obs_shape, act_shape = load_dataset(dataset_file)
+        print(f"FINISHED LOADING {cfg.dataset}")
+
+        train_step = train(cfg, dataset, models, evaluators, train_step, wandb_name, cur_date_time)
+        dataset = None
+
+
+def train(cfg: DictConfig, dataset, models, evaluators, train_step, wandb_name, cur_date_time):
     dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
-    train_step = 0
+
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
         sample_ind_next = np.random.permutation(len(dataset["obs"]))
@@ -99,7 +112,7 @@ def train(cfg: DictConfig, dataset, models, evaluators):
             end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
             sample_ind = np.sort(sample_ind_all[start:end])
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
-            
+
             # train the representation models
             for model_name, model in models.items():
                 log = model.train_step(samples, epoch, train_step)
@@ -111,14 +124,10 @@ def train(cfg: DictConfig, dataset, models, evaluators):
 
             if cfg.wandb:
                 log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
-                
-            train_step += 1       
 
+            train_step += 1
 
-         
-
-            
-    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")    
+    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     logdir = os.path.join(cfg.logdir, time_str)
 
     os.makedirs(logdir)
