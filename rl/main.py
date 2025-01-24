@@ -46,6 +46,9 @@ class QNetwork(nn.Module):
         obs_shape = env.single_observation_space.shape
         self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda() # obs -> latent?
         self.output_dim = self.encoder.output_dim
+        # defines a layer in the nn, in (input_dim, output_dim)
+        print(f"Output dim of encoder: {self.output_dim}")
+        print(f"Single action space: {env.single_action_space.n}")
         self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n) 
         self.encoder_cfg = encoder_cfg
         self.obs_shape = obs_shape
@@ -53,14 +56,16 @@ class QNetwork(nn.Module):
     def forward(self, x):
         # #original code
         x = x.float() / 255.0
-        return self.q_value_head(self.encoder(x)) ## there's some errror here rn
+        # return self.q_value_head(self.encoder(x)) ## there's some errror here rn
         # #extracted version:
         # print(f"encoder.output_dim: {self.encoder.output_dim}")
         # temp = self.encoder(x)
         # print(f"Encoder output shape: {temp.shape}")
-        # if self.encoder.use_output_layer:
-        #     temp = self.encoder.last_layer(temp)
-        #     print(f"Output after last layer: {temp.shape}")
+        encoded_x = self.encoder(x)
+        print(f"Shape of encoded_x: {encoded_x.shape}")
+        q_values = self.q_value_head(encoded_x)
+        print(f"Shape of q_values: {q_values.shape}")
+        return q_values
         # return temp
 
 

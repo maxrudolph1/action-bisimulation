@@ -16,7 +16,8 @@ class GenEncoder(torch.nn.Module):
             print(f"*** gen_model_nets.py - use output layer with output dim {cfg['output_dim']}")
             self.use_output_layer = True
             self.output_dim = cfg['output_dim']
-            self.last_layer = nn.Sequential(nn.ReLU(), nn.Linear(self.cnn_encoder.output_dim, self.output_dim))
+            import pdb; pdb.set_trace()
+            self.last_layer = nn.Sequential(nn.ReLU(), nn.Linear(self.cnn_encoder.output_dim, self.output_dim)) ## TODO: check here?
         else:    
             self.output_dim = self.encoder.output_dim
             self.use_output_layer = False
@@ -26,7 +27,9 @@ class GenEncoder(torch.nn.Module):
     def forward(self, obs):
         z = self.cnn_encoder(obs)
         if self.use_output_layer:
+            print(f" old z shape {z.shape}")
             z = self.last_layer(z)
+            print(f" new z shape {z.shape}")
         return z
     
     def save(self, path):
