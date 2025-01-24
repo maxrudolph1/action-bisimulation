@@ -120,7 +120,7 @@ def grad_heatmap(obs, encoder):
     heatmap = obs.grad.cpu().numpy()
     # grad_heatmap = np.sum(grad_heatmap, axis=0)
     heatmap /= np.max(heatmap, axis=(1, 2), keepdims=True)
-    print(obs.is_leaf)
+    print(f"is leaf: {obs.is_leaf}")
     obstacle_heatmap = cm.gray(heatmap[0])[:, :, :3]
     agent_heatmap = cm.gray(heatmap[1])[:, :, :3]
 
