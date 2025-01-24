@@ -28,8 +28,8 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
     global_step = 0
     pbar = tqdm(total=num, position=idx)
     while global_step < num:
-        obs = env.reset()
-        # obs, info = env.reset() # gymnasium vs gym
+        # obs = env.reset()
+        obs, info = env.reset() # gymnasium vs gym
         done = False
         recompute = True
         kaction_buffer = list()
@@ -43,8 +43,9 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
                     optimal_actions = env.find_path()
                 action = optimal_actions.pop(0)
                 recompute = False
-            obs_next, rew, done, info = env.step(action)
-            # obs_next, rew, truncated, info, done = env.step(action) # gymnasium vs gym
+            # obs_next, rew, done, info = env.step(action)
+            obs_next, rew, terminated, truncated, info = env.step(action) # gymnasium vs gym
+            done = terminated or truncated
 
             kaction_buffer.append((obs, action, rew, obs_next, done, info["pos"], info["goal"]))
             actions.append(action)
@@ -58,13 +59,19 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
         k_obs = list()
 
         for i in range(len(kaction_buffer)):
-            action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))),
-                                                                                (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
+            # GET THE SEQUENCE OF ACTIONS FROM THE ACTION BUFFER
+            # action_sequences.append([kaction_buffer[kidx][1] for kidx in np.pad(list(range(i,min(i+args.k_step_action, len(kaction_buffer)))),
+                                                                                # (0, max(0, i+args.k_step_action - len(kaction_buffer))))])
+            padWidth = (0, max(0, i+args.k_step_action - len(kaction_buffer)))
+            arrToPad = list(range(i, min(i+args.k_step_action, len(kaction_buffer))))
+            tmpiter = np.pad(arrToPad, padWidth)
+            action_sequences.append([kaction_buffer[kidx][1] for kidx in tmpiter])  # get the action from the kaction buffer
+
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0) # not equal because we don't have obs_next for the final state
             if args.k_step_action > 0:
                 k_obs_vals = list()
-                for k in range(2, args.k_step_action + 1):
-                    k_obs_vals.append(kaction_buffer[min(i+args.k_step_action, len(kaction_buffer)-1)][0])
+                for k in range(1, args.k_step_action + 1): # starting at 1 includes the obs_next
+                    k_obs_vals.append(kaction_buffer[min(i+k, len(kaction_buffer)-1)][0])
                 k_obs_vals = np.stack(k_obs_vals, axis=0)
                 k_obs.append(k_obs_vals)
             else:
@@ -79,13 +86,13 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--num-workers", default=32, type=int)
+    parser.add_argument("--num-workers", default=16, type=int)
     parser.add_argument("--size", type=int, default=1000000)
     parser.add_argument("--epsilon", type=float, default=0.5)
     parser.add_argument("--num-obstacles", type=int, default=10)
     parser.add_argument("--obstacle-size", type=int, default=1)
     parser.add_argument("--grid-size", type=int, default=15)
-    parser.add_argument("--k-step-action", type=int, default=0) # number of lookahead steps for the "single step" model
+    parser.add_argument("--k-step-action", type=int, default=4) # number of lookahead steps for the "single step" model
     parser.add_argument("--maze",default=False, action="store_true")
     parser.add_argument("--env-config", default=None)
     parser.add_argument("--env", default="nav2d")
