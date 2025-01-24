@@ -53,8 +53,14 @@ class Acro(torch.nn.Module):
         obs = torch.as_tensor(batch["obs"], device="cuda")
         act = torch.as_tensor(batch["action"], device="cuda")
 
-        random_step = random.randint(0, self.k_steps - 2)
+        random_step = random.randint(0, self.k_steps - 1) # randint is inclusive
         obs_next = torch.as_tensor(batch["kobs"][:, random_step], device="cuda")
+
+        # remove all obs, action, and obs_next entries that are invalid
+        kvalid = batch["kvalid"].squeeze()
+        obs = obs[kvalid]
+        act = act[kvalid]
+        obs_next = obs_next[kvalid]
 
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
