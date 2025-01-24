@@ -104,19 +104,13 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
             action_sequences.append([kaction_buffer[kidx][1] for kidx in tmpiter])  # get the action from the kaction buffer
 
             kvalid_values.append(len(kaction_buffer) - (i+args.k_step_action) > 0)  # not >= because we don't have obs_next for the final state
-            # print("kvalid_values", kvalid_values[-1])
             if args.k_step_action > 1:
-                # shorthand
-                # k_obs.append(np.stack([kaction_buffer[min(i+k, len(kaction_buffer) - 1)][0] for k in range(2, args.k_step_action + 1)], axis=0))
-
-                # longhand
                 k_obs_vals = list()
                 # for k in range(2, args.k_step_action + 1): # diff for k (starts at 2 = one after obs_next) {NOTE: THIS IS THE ORIGINAL}
                 for k in range(1, args.k_step_action + 1): # diff for k {NOTE: THIS ONE STARTS AT 1, so OBS_NEXT}
                     # tmpIdx = min(i+args.k_step_action, len(kaction_buffer)-1) # FIX: needed fix finished here
-                    tmpIdx = min(i+k, len(kaction_buffer)-1)
-                    elem = kaction_buffer[tmpIdx][0]
-                    k_obs_vals.append(elem)
+                    kab_idx = min(i+k, len(kaction_buffer)-1)
+                    k_obs_vals.append(kaction_buffer[kab_idx][0])
                 k_obs_vals = np.stack(k_obs_vals, axis=0)
                 k_obs.append(k_obs_vals)
             else:
