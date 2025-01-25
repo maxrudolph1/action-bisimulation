@@ -67,7 +67,7 @@ def log_to_wandb(cfg, evaluators, logs, samples, train_step):
             imgs = evaluator.eval_imgs(samples)
             wandb_imgs_log = {f"{model_name}/{key}": img for key, img in imgs.items()}
             wandb.log(wandb_imgs_log, step=train_step)
-            
+
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
     cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -84,15 +84,21 @@ def main(cfg: DictConfig):
     torch.manual_seed(cfg.seed)
 
     # loading just for the shapes
-    dataset, obs_shape, act_shape = load_dataset(cfg.datasets[0])
+    # dataset, obs_shape, act_shape = load_dataset(cfg.datasets[0])
+    # dataset = None
 
-    models, evaluators = create_models(cfg, obs_shape, act_shape)
-    models = initialize_dependant_models(models)
+    models, evaluators = None, None
 
     train_step = 0
+    first_dataset = True
     for dataset_file in cfg.datasets:
         dataset, obs_shape, act_shape = load_dataset(dataset_file)
         print(f"FINISHED LOADING {dataset_file}")
+
+        if first_dataset:
+            models, evaluators = create_models(cfg, obs_shape, act_shape)
+            models = initialize_dependant_models(models)
+            first_dataset = False
 
         train_step = train(cfg, dataset, models, evaluators, train_step, wandb_name, cur_date_time)
         dataset = None
