@@ -39,7 +39,6 @@ def load_dataset(dataset_path):
 
     obs_shape = dataset["obs"][0].shape
     act_shape = dataset["action"].max() + 1
-    print("===== Finished loading dataset", dataset_path)
     return dataset, obs_shape, act_shape
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):
