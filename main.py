@@ -73,7 +73,7 @@ def main(cfg: DictConfig):
     cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     wandb_name = None
-    if cfg.wandb: 
+    if cfg.wandb:
         name = f"{cfg.name}_{cur_date_time}"
         wandb.init(entity=cfg.wandb_entity, project="nav2d", name=name, config=OmegaConf.to_container(cfg),)
 
@@ -92,7 +92,7 @@ def main(cfg: DictConfig):
     train_step = 0
     for dataset_file in cfg.datasets:
         dataset, obs_shape, act_shape = load_dataset(dataset_file)
-        print(f"FINISHED LOADING {cfg.dataset}")
+        print(f"FINISHED LOADING {dataset_file}")
 
         train_step = train(cfg, dataset, models, evaluators, train_step, wandb_name, cur_date_time)
         dataset = None
