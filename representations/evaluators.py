@@ -1,17 +1,16 @@
-from copy import deepcopy
+# from copy import deepcopy
 
 import numpy as np
 import torch.nn
-from matplotlib import cm
+# from matplotlib import cm
 
-from models import nets
+# from models import nets
 from models import gen_model_nets
 import torch.nn.functional as F
 import torch
 import wandb
 from environments.nav2d.utils import perturb_heatmap
-from . import utils
-
+# from . import utils
 
 
 class Evaluators():
@@ -35,10 +34,9 @@ class Evaluators():
         if self.cfg.action_prediction:
             self.init_action_prediction()
 
-
     def init_reconstruction(self):
-        self.decoder = gen_model_nets.GenDecoder2D(self.model.embed_dim, self.obs_shape,self.cfg.reconstruction.decoder).cuda()
-                
+        self.decoder = gen_model_nets.GenDecoder2D(self.model.embed_dim, self.obs_shape, self.cfg.reconstruction.decoder).cuda()
+
         self.decoder_optimizer = torch.optim.Adam(
             list(self.decoder.parameters()),
             lr=0.001,
@@ -60,23 +58,23 @@ class Evaluators():
         recon_loss.backward()
         self.decoder_optimizer.step()
         return {"recon_loss": recon_loss.item()}
-    
+
     def action_prediction_train_step(self, batch, epoch, train_step):
         obs = torch.as_tensor(batch["obs"], device="cuda")
         act = torch.as_tensor(batch["action"], device="cuda")
         obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
         o_encoded = self.model.encoder(obs)
         on_encoded = self.model.encoder(obs_next)
-        act_pred = self.inverse_model(o_encoded, on_encoded) # logits
-        
+        act_pred = self.inverse_model(o_encoded, on_encoded)  # logits
+
         action_loss = F.cross_entropy(act_pred, act)
         self.inverse_model_optimizer.zero_grad()
         action_loss.backward()
         self.inverse_model_optimizer.step()
         return {"action_loss": action_loss.item()}
-        
+
     def train_step(self, batch, epoch, train_step):
-        if train_step % self.cfg.reset_freq  == 0:
+        if train_step % self.cfg.reset_freq == 0:
             self.init_action_prediction()
             self.init_reconstruction()
 
@@ -94,14 +92,13 @@ class Evaluators():
         obs = samples["obs"][0]
         obs[1, :, :] = -1
         obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
-        heatmap = wandb.Image(np.swapaxes(perturb_heatmap(obs, self.model.encoder)[1], 0,2))
+        heatmap = wandb.Image(np.swapaxes(perturb_heatmap(obs, self.model.encoder)[1], 0, 2))
 
         obs = torch.tensor(samples["obs"][0])
         obs_recon = self.decoder(self.model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
         disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
-        reconstruction = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0,2), disp_obs], axis=1))
+        reconstruction = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0, 2), disp_obs], axis=1))
         return {"reconstruction": reconstruction, "heatmap": heatmap}
-
 
     def save(self, path):
         pass

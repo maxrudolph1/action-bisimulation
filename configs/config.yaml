@@ -12,6 +12,7 @@ n_epochs: 20
 batch_size: 256
 met_log_freq: 10
 img_log_freq: 1000
+train_evaluators: True
 defaults:
   - algos: single_step
   - algos/evaluators@evaluators
