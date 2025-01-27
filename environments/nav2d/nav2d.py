@@ -1,6 +1,7 @@
 import gymnasium as gym
 # from gym import spaces
 # from gym.utils import seeding
+import gymnasium.utils.seeding as seeding
 import gymnasium.spaces as spaces
 import heapq
 import numpy as np
