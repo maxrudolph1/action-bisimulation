@@ -19,10 +19,13 @@ import random
 from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.acro import Acro
+# from representations.info_nce import KNCEStep
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
 from representations.bvae import BetaVariationalAutoencoder
 import os
+
+import pdb
 
 
 MODEL_DICT = {'single_step': SingleStep, 'acro': Acro, 'multi_step': MultiStep, 'bvae': BetaVariationalAutoencoder}
@@ -39,7 +42,9 @@ def load_dataset(dataset_path):
 
     obs_shape = dataset["obs"][0].shape
     act_shape = dataset["action"].max() + 1
+    # print("===== Finished loading dataset", dataset_path)
     return dataset, obs_shape, act_shape
+
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):
     algo_cfgs = cfg.algos
@@ -47,16 +52,19 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
     models = {}
 
     for model_name in model_names:
-        model_cfg = algo_cfgs[model_name]
+        # model_cfg = algo_cfgs[model_name]
         model = MODEL_DICT[model_name](obs_shape=obs_shape, act_shape=act_shape, cfg=cfg)
         models[model_name] = model
     return models
+
 
 def initialize_dependant_models(models):
     for model_name, model in models.items():
         model.share_dependant_models(models)
     return models
 
+
+# NOTE: THERE IS A DIFFERENCE ON THIS FUNCTION
 def log_to_wandb(cfg, models, logs, samples, train_step):
     if train_step % cfg.met_log_freq == 0:
         labeled_logs = {f"{algo_name}/{key}": value for algo_name, algo_log in logs.items() for key, value in algo_log.items()}
@@ -66,7 +74,7 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
             obs = samples["obs"][0]
             obs[1, :, :] = -1
             obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
-            img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0,2))
+            img = wandb.Image(np.swapaxes(perturb_heatmap(obs, model.encoder)[1], 0, 2))
             wandb.log({f"{model_name}/heatmap": img}, step=train_step)
 
             if model_name == "bvae":
@@ -81,14 +89,93 @@ def log_to_wandb(cfg, models, logs, samples, train_step):
                 img = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0,2), disp_obs], axis=1))
                 wandb.log({f"{model_name}/reconstruction": img}, step=train_step)
 
+
+def printMergedObs(obs):
+    # ANSI color codes
+    COLORS = {
+        'O': "\033[32m",   # Green for O (1 from obstacles)
+        'X': "\033[31m",   # Red for X (1 from agent)
+        '-': "\033[33m",   # Yellow for - (-1 from either grid)
+        '0': "\033[37m",   # White for 0
+    }
+    RESET = "\033[0m"
+
+    # Function to merge grids and format for printing
+    def merge_and_format_grids(grid1, grid2):
+        merged_grid = np.full(grid1.shape, '0', dtype=object)
+
+        # Merging logic
+        for i in range(grid1.shape[0]):
+            for j in range(grid1.shape[1]):
+                if grid1[i, j] == 1:  # grid1's 'O' takes precedence
+                    merged_grid[i, j] = 'O'
+                elif grid2[i, j] == 1:  # grid2's 'X' comes next
+                    merged_grid[i, j] = 'X'
+                elif grid1[i, j] == -1 or grid2[i, j] == -1:  # Any -1 becomes '-'
+                    merged_grid[i, j] = '-'
+                else:  # Otherwise, it's 0
+                    merged_grid[i, j] = '0'
+
+        # Create a formatted grid with colors
+        formatted_grid = "\n".join([
+            " ".join(f"{COLORS[cell]}{cell}{RESET}" for cell in row)
+            for row in merged_grid
+        ])
+        return formatted_grid
+
+    print(merge_and_format_grids(obs[0], obs[1]))
+
+
+def validateObs(dataset):
+    print("dataset size = ", len(dataset["obs"]))
+    idx = 0
+    samples = {key: dataset[key][idx] for key in dataset.keys()}
+
+    print("IDX", idx)
+    print("kvalid", samples["kvalid"])
+
+    print("-"*15, "obs", "-"*15)
+    printMergedObs(samples["obs"])
+
+    print(">"*5, "action:", samples["action"])
+    print(">"*5, "kaction buffer:", samples["kaction"])
+
+    print("-"*15, "obs_next", "-"*15)
+    printMergedObs(samples["obs_next"])
+
+    print("-"*15, "kobs_0", "-"*15)
+    printMergedObs(samples["kobs"][0])
+
+    print("-"*15, "kobs_1", "-"*15)
+    printMergedObs(samples["kobs"][1])
+
+    print("-"*15, "kobs_2", "-"*15)
+    printMergedObs(samples["kobs"][2])
+
+    # print("-"*15, "kobs_3", "-"*15)
+    # printMergedObs(samples["kobs"][3])
+
+    # print("-"*15, "kobs_4", "-"*15)
+    # printMergedObs(samples["kobs"][4])
+
+    # print("-"*15, "kobs_5", "-"*15)
+    # printMergedObs(samples["kobs"][5])
+
+    # print("obs", samples["obs"].shape)
+    # print("obs_next", samples["obs_next"].shape)
+    print("kobs", samples["kobs"].shape)
+    print("kaction", samples["kaction"])
+    print("kvalid", samples["kvalid"])
+
+
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
     cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     wandb_name = None
     if cfg.wandb:
-        name = f"acro_k_{cfg.algos.acro.k_steps-1}_{cur_date_time}"
-        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps-1}_l1_{cfg.algos.acro.l1_penalty}_dynamic_{cfg.algos.acro.dynamic_l1_penalty}"
+        # name = f"acro_k_{cfg.algos.acro.k_steps}_epochs_{cfg.n_epochs}_{cur_date_time}"
+        name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_{cur_date_time}"
         # name = f"gamma_sweeps_bisim_gamma{cfg.algos.multi_step.gamma}"
 
         # wandb.init(entity='evan-kuo-edu', project="nav2d", config=OmegaConf.to_container(cfg),)
@@ -109,6 +196,11 @@ def main(cfg: DictConfig):
 
     train_step = 0
     for dataset_file in cfg.datasets:
+        # DEBUG STUFF
+        # validateObs(load_dataset(dataset_file)[0])
+        # exit()
+
+        # CORRECT STUFF
         dataset, obs_shape, act_shape = load_dataset(dataset_file)
         print(f"FINISHED LOADING {dataset_file}")
 
@@ -147,5 +239,5 @@ def train(cfg: DictConfig, dataset, models, train_step, wandb_name, cur_date_tim
     return train_step
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()

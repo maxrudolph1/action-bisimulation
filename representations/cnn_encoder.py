@@ -1,3 +1,5 @@
+import torch
+
 class Encoder(torch.nn.Module):
     def __init__(self, obs_dim, normalized=False, **kwargs):
         super().__init__()

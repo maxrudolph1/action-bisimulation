@@ -1,17 +1,25 @@
 logdir: 'results'
 datasets: [
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p1_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p2_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p3_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p4_k_steps_10.hdf5',
-  '/nfs/homes/bisim/ekuo/action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p5_k_steps_10.hdf5',
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size500000_v2d1_k_steps_8.hdf5',
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s11_e0.5_size500000_v2d2_k_steps_8.hdf5',
+
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size10_t1_k_steps_8.hdf5',
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p1_k_steps_10.hdf5',
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p2_k_steps_10.hdf5',
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p3_k_steps_10.hdf5',
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p4_k_steps_10.hdf5',
+  # '/home/ekuo/bisim/data-collection-action-bisimulation/datasets/nav2d_dataset_s0_e0.5_size200000_p5_k_steps_10.hdf5',
+
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_4.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s5_e0.5_size1000000__k_steps_4.hdf5',
+  # '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s7_e0.5_size1000000__k_steps_4.hdf5',
 ]
 wandb: False
 seed: 0
 n_epochs: 20
 batch_size: 256
 met_log_freq: 10
-img_log_freq: 3000
+img_log_freq: 1000
 
 defaults:
   - algos: single_step
