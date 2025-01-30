@@ -114,7 +114,7 @@ class Acro(torch.nn.Module):
             "l1_loss": l1_loss.detach().item(),
             "loss": total_loss.detach().item(),
             "accuracy": accuracy.detach().item(),
-            "cur_l1_pentaly": cur_l1_penalty,
+            "cur_l1_penalty": cur_l1_penalty,
             "mean_element_magnitude": mean_element_magnitude,
             "mean_representation_magnitude": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
         }

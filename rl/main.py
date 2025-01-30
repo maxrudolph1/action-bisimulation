@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import tyro
+# import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
 from environments.nav2d.nav2d_sb3 import Navigate2D
@@ -18,15 +18,17 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from models.gen_model_nets import GenEncoder
 import stable_baselines3 as sb3
-import copy
+# import copy
 import imageio
 
+
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
-    capture_video= False
+    capture_video = False
+
     def thunk():
         if capture_video:
             env = Navigate2D(**env_kwargs)
-            env = gym.wrappers.RecordVideo(env, f"videos")
+            env = gym.wrappers.RecordVideo(env, "videos")
         else:
             env = Navigate2D(**env_kwargs)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -41,7 +43,7 @@ class QNetwork(nn.Module):
     def __init__(self, env, encoder_cfg):
         super().__init__()
         obs_shape = env.single_observation_space.shape
-        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda() 
+        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
         self.output_dim = self.encoder.output_dim
         self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
         self.encoder_cfg = encoder_cfg
@@ -50,7 +52,7 @@ class QNetwork(nn.Module):
     def forward(self, x):
         x = x.float() / 255.0
         return self.q_value_head(self.encoder(x))
-    
+
     @classmethod
     def from_encoder_checkpoint(cls, env, encoder_checkpoint_path,):
         encoder_checkpoint = torch.load(encoder_checkpoint_path)
@@ -58,11 +60,11 @@ class QNetwork(nn.Module):
         model = cls(env, encoder_cfg)
         model.encoder.load_state_dict(encoder_checkpoint["state_dict"])
         return model
-    
+
     def freeze_encoder(self):
         for param in self.encoder.parameters():
             param.requires_grad = False
-    
+
 
 def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
     slope = (end_e - start_e) / duration
@@ -230,9 +232,9 @@ def main(cfg: DictConfig):
         for idx, episodic_return in enumerate(episodic_returns):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
 
-
     envs.close()
     writer.close()
+
 
 if __name__ == "__main__":
     main()
