@@ -23,7 +23,7 @@ class Navigate2D(gym.Env):
         obstacle_distance_metric=False,
         static_goal=False,
     ):
-        
+
         self.n_obs = num_obstacles
         self.size = grid_size
         self.r_obs = np.max([obstacle_diameter // 2, 1])
@@ -108,7 +108,7 @@ class Navigate2D(gym.Env):
             self.goal = goal
             self.grid = grid
             self.dist = np.linalg.norm(start - goal, ord=1)
-        
+
             if self.find_path() is not None:
                 break
 
