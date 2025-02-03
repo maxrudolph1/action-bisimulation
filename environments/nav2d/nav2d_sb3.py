@@ -4,7 +4,8 @@ from gymnasium.utils import seeding
 import heapq
 import numpy as np
 import yaml
-from copy import copy
+# from copy import copy
+
 
 class Navigate2D(gym.Env):
     actions = np.array([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=int)
