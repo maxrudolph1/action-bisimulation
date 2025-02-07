@@ -1,8 +1,8 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/dqn/#dqnpy
-import os
+# import os
 import random
 import time
-from dataclasses import dataclass
+# from dataclasses import dataclass
 
 import gymnasium as gym
 import numpy as np
@@ -141,6 +141,9 @@ def main(cfg: DictConfig):
         if random.random() < epsilon:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
         else:
+            if (obs.shape == (3, 7, 7)):
+                obs = np.expand_dims(obs, axis=0)
+            # BUG: previous issue was that it wants obs of shape (1, 3, 7, 7), but it was missing the first dim sometimes
             q_values = q_network(torch.Tensor(obs).to(device))
             actions = torch.argmax(q_values, dim=1).cpu().numpy()
 
@@ -182,7 +185,7 @@ def main(cfg: DictConfig):
                 if global_step % 100 == 0:
                     writer.add_scalar("losses/td_loss", loss, global_step)
                     writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
-                    print("SPS:", int(global_step / (time.time() - start_time)))
+                    print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
                     writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
                 # optimize the model
