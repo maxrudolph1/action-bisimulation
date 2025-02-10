@@ -4,7 +4,8 @@ from gymnasium.utils import seeding
 import heapq
 import numpy as np
 import yaml
-from copy import copy
+# from copy import copy
+
 
 class Navigate2D(gym.Env):
     actions = np.array([[1, 0], [0, 1], [-1, 0], [0, -1]], dtype=int)
@@ -23,7 +24,7 @@ class Navigate2D(gym.Env):
         obstacle_distance_metric=False,
         static_goal=False,
     ):
-        
+
         self.n_obs = num_obstacles
         self.size = grid_size
         self.r_obs = np.max([obstacle_diameter // 2, 1])
@@ -108,7 +109,7 @@ class Navigate2D(gym.Env):
             self.goal = goal
             self.grid = grid
             self.dist = np.linalg.norm(start - goal, ord=1)
-        
+
             if self.find_path() is not None:
                 break
 
@@ -144,7 +145,10 @@ class Navigate2D(gym.Env):
         info["goal"] = self.goal.copy()
         info["dist"] = self.dist.copy()
         info["grid"] = self.grid.copy()
-        info["terminal_observation"] = self._get_obs(self.grid, self.pos, self.goal)
+        if terminated:
+            info["terminal_observation"] = self._get_obs(self.grid, self.pos, self.goal)
+        if truncated:
+            info["final_observation"] = self._get_obs(self.grid, self.pos, self.goal)
         return self._get_obs(self.grid, self.pos, self.goal), reward, terminated, truncated, info
 
     def _get_obs(self, grid, pos=None, goal=None):

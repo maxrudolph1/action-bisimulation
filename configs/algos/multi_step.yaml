@@ -2,13 +2,11 @@
 name: multi_step
 tau: 0.005
 sync_freq: 1
-l1_pentaly: 0.001
 gamma: 0.98
 learning_rate: 0.0001
 weight_decay: 0.00001
 resume_path: null
 ss_train_warmup_epochs: 0
-
 
 base_case_path: ''
 use_states_with_same_action: False # behavioral

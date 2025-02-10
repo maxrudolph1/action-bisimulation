@@ -26,7 +26,7 @@ class MultiStep(torch.nn.Module):
         self.gamma = cfg.algos.multi_step.gamma
         self.tau = cfg.algos.multi_step.tau
 
-        if cfg.algos.multi_step.get("base_case_path"):
+        if len(cfg.algos.multi_step.get("base_case_path")) > 0:
             self.bc_encoder = torch.load(cfg.algos.multi_step.get("base_case_path"))['encoder']
         else:
             self.bc_encoder = None
