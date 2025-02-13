@@ -206,7 +206,7 @@ def main(cfg: DictConfig):
                         cfg.rl.tau * q_network_param.data + (1.0 - cfg.rl.tau) * target_network_param.data
                     )
 
-        if global_step % cfg.render_freq == 0:
+        if (global_step % cfg.render_freq == 0) or (global_step == cfg.total_timesteps - 1):  # makes sure that it renders at the end too
             frames = []
             for _ in range(5):
                 obs, _ = eval_env.reset()
