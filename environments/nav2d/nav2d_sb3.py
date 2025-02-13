@@ -52,7 +52,7 @@ class Navigate2D(gym.Env):
         else:
             self.config = -1
         self.render_mode = 'rgb_array'
-        print(grid_size)
+        # print(grid_size)
 
 
     def seed(self, seed=None):

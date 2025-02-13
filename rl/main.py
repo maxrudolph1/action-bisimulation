@@ -141,7 +141,8 @@ def main(cfg: DictConfig):
         if random.random() < epsilon:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
         else:
-            if (obs.shape == (3, 7, 7)):
+            # if (obs.shape == (3, 7, 7)): HACK: this is a bit hardcoded. the below should work better for different grid_sizes
+            if obs.ndim == 3:
                 obs = np.expand_dims(obs, axis=0)
             # BUG: previous issue was that it wants obs of shape (1, 3, 7, 7), but it was missing the first dim sometimes
             q_values = q_network(torch.Tensor(obs).to(device))
@@ -231,6 +232,9 @@ def main(cfg: DictConfig):
                 )
                 # Log the video file to wandb
                 wandb.log({"render": wandb.Video(temp_video_path, format="mp4")})
+
+                # video_tensor = torch.tensor(frames).permute(0, 3, 1, 2)[None]  
+                # writer.add_video("render_video", video_tensor, global_step, fps=5)
             else:
                 imageio.mimsave('test.gif', frames, fps=5)
             print("rendered test.gif at global_step", global_step)
