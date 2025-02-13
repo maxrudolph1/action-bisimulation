@@ -172,6 +172,10 @@ def main(cfg: DictConfig):
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
 
+        # # TODO: Logic for representation model input here
+        # if (cfg.encoder_path is not None):
+        #     pass
+
         # ALGO LOGIC: training.
         if global_step > cfg.rl.learning_starts:
             if global_step % cfg.rl.train_frequency == 0:
@@ -185,7 +189,8 @@ def main(cfg: DictConfig):
                 if global_step % 100 == 0:
                     writer.add_scalar("losses/td_loss", loss, global_step)
                     writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
-                    print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
+                    if not cfg.use_wandb:
+                        print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
                     writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
                 # optimize the model
@@ -211,9 +216,24 @@ def main(cfg: DictConfig):
                     obs, reward, terminated, truncated, infos = eval_env.step(actions)
                     frames.append(obs)
             frames = np.array(frames).transpose(0, 2, 3, 1)
-            imageio.mimsave('test.gif', frames, fps=5)
+            if cfg.use_wandb:
+                from moviepy import ImageSequenceClip
 
-
+                # Create a clip from the list of frames
+                clip = ImageSequenceClip(list(frames), fps=5)
+                temp_video_path = f"render_{global_step}.mp4"
+                # Write video file with a specific codec (libx264)
+                clip.write_videofile(
+                    temp_video_path,
+                    codec="libx264",
+                    audio=False,
+                    logger=None
+                )
+                # Log the video file to wandb
+                wandb.log({"render": wandb.Video(temp_video_path, format="mp4")})
+            else:
+                imageio.mimsave('test.gif', frames, fps=5)
+            print("rendered test.gif at global_step", global_step)
 
 
     if cfg.save_model:

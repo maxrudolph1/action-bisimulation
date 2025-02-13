@@ -15,7 +15,7 @@ save_buffer_name: null
 save_model: False
 
 use_wandb: False
-render_freq: 50000
+render_freq: 25000
 eval_freq: 1000
 total_timesteps: 500000
 torch_deterministic: True
