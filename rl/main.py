@@ -79,7 +79,8 @@ def main(cfg: DictConfig):
             poetry run pip install "stable_baselines3==2.0.0a1"
             """)
     assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
-    run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
+    # run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
+    run_name = f"fixed_{cfg.exp_name}__{cfg.seed}__{int(time.time())}__grid{cfg.env.grid_size}__obs{cfg.env.num_obstacles}__diam{cfg.env.obstacle_diameter}"
     if cfg.use_wandb:
         import wandb
 
@@ -141,7 +142,8 @@ def main(cfg: DictConfig):
         if random.random() < epsilon:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
         else:
-            if (obs.shape == (3, 7, 7)):
+            # if (obs.shape == (3, 7, 7)): HACK: this is a bit hardcoded. the below should work better for different grid_sizes
+            if obs.ndim == 3:
                 obs = np.expand_dims(obs, axis=0)
             # BUG: previous issue was that it wants obs of shape (1, 3, 7, 7), but it was missing the first dim sometimes
             q_values = q_network(torch.Tensor(obs).to(device))
@@ -211,7 +213,15 @@ def main(cfg: DictConfig):
                     obs, reward, terminated, truncated, infos = eval_env.step(actions)
                     frames.append(obs)
             frames = np.array(frames).transpose(0, 2, 3, 1)
-            imageio.mimsave('test.gif', frames, fps=5)
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            # imageio.mimsave(f'test_{timestamp}_{cfg.exp_name}__{cfg.seed}__{int(time.time())}__grid{cfg.env.grid_size}__obs{cfg.env.num_obstacles}__diam{cfg.env.obstacle_diameter}.gif', frames, fps=5)
+            try:
+                imageio.mimsave(f'test_{timestamp}_{cfg.exp_name}__{cfg.seed}__{int(time.time())}__grid{cfg.env.grid_size}__obs{cfg.env.num_obstacles}__diam{cfg.env.obstacle_diameter}.gif', frames, fps=5)
+            except Exception as e:
+                with open(f'error_{timestamp}.txt', 'w') as f:
+                    f.write(f"Failed to save gif: {e}\n")
+
+
 
 
 
