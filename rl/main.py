@@ -43,7 +43,14 @@ class QNetwork(nn.Module):
     def __init__(self, env, encoder_cfg):
         super().__init__()
         obs_shape = env.single_observation_space.shape
-        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+
+        latent_path = encoder_cfg.get("latent_encoder_path")
+        if (latent_path) and (len(latent_path) > 0):
+            # FIXME: Try both freezing and not freezing the encoder (not sure which one is right now?)
+            self.encoder = torch.load(latent_path)['encoder']
+        else:
+            self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()  # base CNN
+
         self.output_dim = self.encoder.output_dim
         self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
         self.encoder_cfg = encoder_cfg
@@ -97,6 +104,13 @@ def main(cfg: DictConfig):
         "hyperparameters",
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in OmegaConf.to_container(cfg, resolve=True).items()])),
     )
+
+    # NOTE: HELP THIS IS IT????
+    # if len(cfg.latent_encoder_path) >= 1:
+    #     self.bc_encoder = torch.load(cfg.algos.multi_step.get("base_case_path"))['encoder']
+    # else:
+    #     self.bc_encoder = None
+
 
     # TRY NOT TO MODIFY: seeding
     random.seed(cfg.seed)
@@ -174,8 +188,7 @@ def main(cfg: DictConfig):
         obs = next_obs
 
         # # TODO: Logic for representation model input here
-        # if (cfg.encoder_path is not None):
-        #     pass
+
 
         # ALGO LOGIC: training.
         if global_step > cfg.rl.learning_starts:
@@ -186,6 +199,7 @@ def main(cfg: DictConfig):
                     td_target = data.rewards.flatten() + cfg.rl.gamma * target_max * (1 - data.dones.flatten())
                 old_val = q_network(data.observations).gather(1, data.actions).squeeze()
                 loss = F.mse_loss(td_target, old_val)
+                # TODO: LOGGING FOR REWARD
 
                 if global_step % 100 == 0:
                     writer.add_scalar("losses/td_loss", loss, global_step)
@@ -238,7 +252,6 @@ def main(cfg: DictConfig):
             else:
                 imageio.mimsave('test.gif', frames, fps=5)
             print("rendered test.gif at global_step", global_step)
-
 
     if cfg.save_model:
         model_path = f"runs/{run_name}/{cfg.exp_name}.cleanrl_model"

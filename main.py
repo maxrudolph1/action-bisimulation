@@ -117,10 +117,6 @@ def main(cfg: DictConfig):
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
 
-    # loading just for the shapes
-    # dataset, obs_shape, act_shape = load_dataset(cfg.datasets[0])
-    # dataset = None
-
     models, evaluators = None, None
 
     train_step = 0

@@ -22,8 +22,6 @@ torch_deterministic: True
 cuda: True
 num_envs: 1
 
-# representation model
-latent_encoder_path: ''
 
 env:
   max_timesteps: 50
@@ -55,3 +53,4 @@ encoder:
   layer_norm: false
   output_dim: 64
   path: null
+  latent_encoder_path: ''
