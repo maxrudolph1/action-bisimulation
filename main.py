@@ -182,9 +182,15 @@ def train(
 
             train_step += 1
 
-    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    logdir = os.path.join(cfg.logdir, time_str)
+    # time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    # logdir = os.path.join(cfg.logdir, time_str)
+    #
+    # os.makedirs(logdir)
+    # for model_name, model in models.items():
+    #     model.save(logdir + f"/{model_name}.pt")
 
+    log_name = ((wandb_name + "_") if wandb_name is not None else cur_date_time) + ("ts_" + str(train_step))
+    logdir = os.path.join(cfg.logdir, log_name)
     os.makedirs(logdir)
     for model_name, model in models.items():
         model.save(logdir + f"/{model_name}.pt")

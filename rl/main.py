@@ -1,5 +1,5 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/dqn/#dqnpy
-# import os
+import os
 import random
 import time
 # from dataclasses import dataclass
@@ -105,13 +105,6 @@ def main(cfg: DictConfig):
         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in OmegaConf.to_container(cfg, resolve=True).items()])),
     )
 
-    # NOTE: HELP THIS IS IT????
-    # if len(cfg.latent_encoder_path) >= 1:
-    #     self.bc_encoder = torch.load(cfg.algos.multi_step.get("base_case_path"))['encoder']
-    # else:
-    #     self.bc_encoder = None
-
-
     # TRY NOT TO MODIFY: seeding
     random.seed(cfg.seed)
     np.random.seed(cfg.seed)
@@ -187,9 +180,6 @@ def main(cfg: DictConfig):
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
 
-        # # TODO: Logic for representation model input here
-
-
         # ALGO LOGIC: training.
         if global_step > cfg.rl.learning_starts:
             if global_step % cfg.rl.train_frequency == 0:
@@ -247,8 +237,7 @@ def main(cfg: DictConfig):
                 # Log the video file to wandb
                 wandb.log({"render": wandb.Video(temp_video_path, format="mp4")})
 
-                # video_tensor = torch.tensor(frames).permute(0, 3, 1, 2)[None]  
-                # writer.add_video("render_video", video_tensor, global_step, fps=5)
+                os.remove(temp_video_path)
             else:
                 imageio.mimsave('test.gif', frames, fps=5)
             print("rendered test.gif at global_step", global_step)
