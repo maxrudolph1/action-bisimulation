@@ -40,10 +40,12 @@ def get_inplace_acti(acti, param=0.1):
     elif acti == "prelu": return nn.PReLU()
     elif acti == "crelu": return CReLU()
 
+
 class GeneralConv2DEncoder(torch.nn.Module):
     '''
     Generalized 2d encoder, with variable hidden layers, pooling layers, activations and layer norm
     '''
+
     def __init__(self, obs_dim, normalized=False, **kwargs):
         super().__init__()
         c, h, w = obs_dim
@@ -63,7 +65,7 @@ class GeneralConv2DEncoder(torch.nn.Module):
             * 2
             - 1
         ).cuda()
-        
+
         in_channels = c + 2 if 'use_grid' in kwargs and kwargs['use_grid'] else c
         num_non_pool = len(self.hidden_layers) - self.num_pooling - 1 # subtract number of pooling layers and last layer which has no pooling
         self.conv = torch.nn.Sequential( * # separate logic for the first layer

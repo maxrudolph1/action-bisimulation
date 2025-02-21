@@ -102,8 +102,8 @@ def main(cfg: DictConfig):
 
     wandb_name = None
     if cfg.wandb:
-        name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        # name = f"{cfg.name}_{cur_date_time}"
+        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
+        name = f"{cfg.name}_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",

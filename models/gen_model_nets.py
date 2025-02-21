@@ -1,12 +1,13 @@
-from copy import deepcopy
+# from copy import deepcopy
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-import time
-import numpy as np
+# import time
+# import numpy as np
 from models import gen_nets
+
 
 class GenEncoder(torch.nn.Module):
     def __init__(self, obs_dim, cfg):
@@ -16,20 +17,21 @@ class GenEncoder(torch.nn.Module):
             self.use_output_layer = True
             self.output_dim = cfg['output_dim']
             self.last_layer = nn.Sequential(nn.ReLU(), nn.Linear(self.cnn_encoder.output_dim, self.output_dim))
-        else:    
+        else:
             self.output_dim = self.encoder.output_dim
             self.use_output_layer = False
         self.cfg = cfg
         self.obs_dim = obs_dim
-        
+
     def forward(self, obs):
         z = self.cnn_encoder(obs)
         if self.use_output_layer:
             z = self.last_layer(z)
         return z
-    
+
     def save(self, path):
         torch.save(dict(obs_dim=self.obs_dim, cfg=self.cfg, state_dict=self.state_dict()), path)
+
 
 class GenInverseDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, cfg):
@@ -40,7 +42,8 @@ class GenInverseDynamics(torch.nn.Module):
 
     def forward(self, embed, embed_next):
         return self.fc(torch.cat([embed, embed_next], dim=-1))
-    
+
+
 class GenActionSetPredictor(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, ksteps=1, **kwargs):
         super().__init__()
@@ -54,6 +57,7 @@ class GenActionSetPredictor(torch.nn.Module):
     def pred_action_set(self, embed):
         return self.forward(embed).reshape(embed.shape[0], -1, self.action_dim)
 
+
 class GenStochasticForwardDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, **kwargs):
         super().__init__()
@@ -66,7 +70,6 @@ class GenStochasticForwardDynamics(torch.nn.Module):
             embed_dim + action_dim, embed_dim, **kwargs
         )
 
-
     def forward(self, embed, action):
         x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
         return self.fc_mu(x), self.fc_log_var(x)
@@ -76,17 +79,17 @@ class GenForwardDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, cfg):
         super().__init__()
         self.action_dim = action_dim
-        layers = []
-        self.activation=cfg['post_activation']
+        # layers = []
+        self.activation = cfg['post_activation']
 
         self.fc = gen_nets.LinearNetwork(
             embed_dim + action_dim, embed_dim, **cfg
         )
-        
+
     def forward(self, embed, action):
         x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
         return self.fc(x)
-    
+
     def reset_weights(self):
         def init_weights(m):
             if isinstance(m, nn.Linear):
@@ -107,11 +110,12 @@ class GenDQN(torch.nn.Module):
     def forward(self, embed):
         return self.fc(embed)
 
+
 class GenDQNHER(torch.nn.Module):
     def __init__(self, state_shape, action_dim=4, atoms=1, split_obs=False, device='cpu', encoder_path='', **kwargs):
-        super().__init__()        
+        super().__init__()
         if not (encoder_path is None) and (len(encoder_path) > 0):
-            self.encoder=torch.load(encoder_path).encoder
+            self.encoder = torch.load(encoder_path).encoder
         else:
             self.encoder = gen_nets.GenEncoder2D(state_shape, **kwargs)
         self.dqn = GenDQN(self.encoder.output_dim, 4 * atoms, **kwargs["DQN_args"])
@@ -119,16 +123,17 @@ class GenDQNHER(torch.nn.Module):
         self.action_dim = action_dim
         self.device = device
         self.split_obs = split_obs
-        
+
     def forward(self, obs, state=None, info={}):
 
         obs = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
         embed = self.encoder(obs)
         if self.atoms == 1:
-            logits = self.dqn(embed).view(-1,self.action_dim)
+            logits = self.dqn(embed).view(-1, self.action_dim)
         else:
-            logits = self.dqn(embed).view(-1,self.action_dim, self.atoms)
+            logits = self.dqn(embed).view(-1, self.action_dim, self.atoms)
         return logits, state
+
 
 class GenDQNFull(torch.nn.Module):
     def __init__(self, state_shape, action_dim, cfg):
@@ -138,17 +143,17 @@ class GenDQNFull(torch.nn.Module):
         self.atoms = cfg['dqn_args']['atoms']
         self.action_dim = action_dim
         self.device = cfg['device']
-        
+
     def forward(self, obs, state=None, info={}):
-        
         obs = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
-        
+
         embed = self.encoder(obs)
         if self.atoms == 1:
-            logits = self.dqn(embed).view(-1,self.action_dim)
+            logits = self.dqn(embed).view(-1, self.action_dim)
         else:
-            logits = self.dqn(embed).view(-1,self.action_dim, self.atoms)
+            logits = self.dqn(embed).view(-1, self.action_dim, self.atoms)
         return logits, state
+
 
 class GenSideTuner(torch.nn.Module):
     def __init__(self, encoder, obs_dim, **kwargs):
@@ -173,18 +178,16 @@ class GenDecoder2D(torch.nn.Module):
         super().__init__()
         c, h, w = obs_dim
         self.cfg = cfg
-        self.use_grid = True #'use_grid' in cfg and cfg['use_grid']
+        self.use_grid = True  # 'use_grid' in cfg and cfg['use_grid']
         self.grid = (
             torch.stack(
                 torch.meshgrid(
                     torch.arange(0, h) / (h - 1), torch.arange(0, w) / (w - 1)
                 ),
                 dim=0,
-            )
-            * 2
-            - 1
+            ) * 2 - 1
         ).cuda()
-        self.h, self.w = h,w
+        self.h, self.w = h, w
 
         self.conv = torch.nn.Sequential(
             torch.nn.Conv2d(
@@ -237,10 +240,10 @@ class GenDecoder2D(torch.nn.Module):
             .unsqueeze(-1)
             .expand(-1, -1, self.h, self.w)
         )
-            
+
         if self.use_grid:
             combined = torch.cat([x_expand, grid_expand], dim=1)
         else:
             combined = x_expand
-        
+
         return self.conv(combined)

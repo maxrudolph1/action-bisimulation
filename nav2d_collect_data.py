@@ -118,10 +118,10 @@ def main():
             ],
         )
     buffer = [x for b in buffers for x in b]
-    full_path = args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5"
+    full_path = args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}_num_obstacles_{args.num_obstacles}_grid_size_{args.grid_size}.hdf5"
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
     with h5py.File(
-        args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5", "w"
+        args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}_num_obstacles_{args.num_obstacles}_grid_size_{args.grid_size}.hdf5", "w"
     ) as f:
         f["obs"] = np.array([x[0] for x in buffer])
         f["action"] = np.array([x[1] for x in buffer])
@@ -135,6 +135,7 @@ def main():
         f["kobs"] = np.array([x[9] for x in buffer])  # stores dataset_size, k-1 (skips obs next), 3, grid, grid, or data_size, 1 if not used
         f.attrs["k_step_action"] = args.k_step_action
         f.attrs["num_obstacles"] = args.num_obstacles
+        f.attrs["grid_size"] = args.grid_size
         f.attrs["static_goal"] = not args.random_goal
         f.attrs["cleared_goal_channel"] = not args.keep_goal_channel
         f.attrs["env"] = args.env

@@ -12,7 +12,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 # import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
-from torch.utils.tensorboard import SummaryWriter
 from environments.nav2d.nav2d_sb3 import Navigate2D
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -23,6 +22,8 @@ import imageio
 import datetime
 
 from tqdm import tqdm
+
+import pdb  # only used for debugging
 
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
@@ -45,14 +46,19 @@ def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, ob
 class QNetwork(nn.Module):
     def __init__(self, env, encoder_cfg):
         super().__init__()
-        obs_shape = env.single_observation_space.shape
+        obs_shape = env.single_observation_space.shape  # (3, 7, 7)
 
         latent_path = encoder_cfg.get("latent_encoder_path")
         if (latent_path) and (len(latent_path) > 0):
             # FIXME: Try both freezing and not freezing the encoder (not sure which one is right now?)
-            self.encoder = torch.load(latent_path)['encoder']
+            self.encoder = torch.load(latent_path)['encoder']  # 64 dim latent space
+            # ASK:Help, this is only trained on 1, 3, 15, 15 images
+
+            # TODO: freeze the encoder weights
+            for param in self.encoder.parameters():
+                param.requires_grad = False
         else:
-            self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()  # base CNN
+            self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()  # base CNN; 64 dim latent space
 
         self.output_dim = self.encoder.output_dim
         self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
@@ -61,7 +67,8 @@ class QNetwork(nn.Module):
 
     def forward(self, x):
         x = x.float() / 255.0
-        return self.q_value_head(self.encoder(x))
+        latent = self.encoder(x)
+        return self.q_value_head(latent)
 
     @classmethod
     def from_encoder_checkpoint(cls, env, encoder_checkpoint_path,):
@@ -98,17 +105,11 @@ def main(cfg: DictConfig):
         wandb.init(
             project=cfg.wandb_project_name,
             entity=cfg.wandb_entity,
-            # sync_tensorboard=True,
             config=OmegaConf.to_container(cfg, resolve=True),
             name=run_name,
             monitor_gym=True,
             save_code=True,
         )
-    # writer = SummaryWriter(f"runs/{run_name}")
-    # writer.add_text(
-    #     "hyperparameters",
-    #     "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in OmegaConf.to_container(cfg, resolve=True).items()])),
-    # )
 
     # TRY NOT TO MODIFY: seeding
     random.seed(cfg.seed)
@@ -174,10 +175,6 @@ def main(cfg: DictConfig):
                     succ_[ep_idx % 50] = (info['episode']['r'] > -50)
                     ep_idx += 1
 
-                    # writer.add_scalar("metrics/episodic_return", info["episode"]["r"], global_step)
-                    # writer.add_scalar("metrics/episodic_length", info["episode"]["l"], global_step)
-                    # writer.add_scalar("metrics/success_rate", succ_.mean(), global_step)
-
                     if cfg.use_wandb:
                         # converting to wandb logging:
                         wandb.log({"metrics/episodic_return": info["episode"]["r"]}, step=global_step)
@@ -229,11 +226,8 @@ def main(cfg: DictConfig):
                 # the goal) as well as the average steps taken to reach the goal
 
                 if global_step % 100 == 0:
-                    # writer.add_scalar("losses/td_loss", loss, global_step)
-                    # writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
-                    if not cfg.use_wandb:
-                        print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
-                    # writer.add_scalar("metrics/SPS", int(global_step / (time.time() - start_time)), global_step)
+                    # if not cfg.use_wandb:
+                    #     print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
                     if cfg.use_wandb:
                         wandb.log({"losses/td_loss": loss}, step=global_step)
                         wandb.log({"losses/q_values": old_val.mean().item()}, step=global_step)
@@ -281,7 +275,6 @@ def main(cfg: DictConfig):
                 os.remove(temp_video_path)
             else:
                 imageio.mimsave('test.gif', frames, fps=5)
-            # print("rendered test.gif at global_step", global_step)
 
     if cfg.save_model:
         model_path = f"runs/{run_name}/{cfg.exp_name}.cleanrl_model"
@@ -300,12 +293,10 @@ def main(cfg: DictConfig):
             epsilon=0.05,
         )
         for idx, episodic_return in enumerate(episodic_returns):
-            # writer.add_scalar("eval/episodic_return", episodic_return, idx)
             if cfg.use_wandb:
                 wandb.log({"eval/episodic_return": episodic_return}, step=idx)
 
     envs.close()
-    # writer.close()
 
 
 if __name__ == "__main__":
