@@ -85,18 +85,18 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=7, type=int)
-    # parser.add_argument("--num-workers", default=16, type=int)
-    parser.add_argument("--num-workers", default=8, type=int)
-    # parser.add_argument("--size", type=int, default=1000000)
-    parser.add_argument("--size", type=int, default=250000)
+    parser.add_argument("--num-workers", default=16, type=int)
+    # parser.add_argument("--num-workers", default=8, type=int)
+    parser.add_argument("--size", type=int, default=1000000)
+    # parser.add_argument("--size", type=int, default=250000)
     parser.add_argument("--epsilon", type=float, default=0.5)
-    # parser.add_argument("--num-obstacles", type=int, default=10)
-    parser.add_argument("--num-obstacles", type=int, default=15)
+    parser.add_argument("--num-obstacles", type=int, default=10)
+    # parser.add_argument("--num-obstacles", type=int, default=15)
     parser.add_argument("--obstacle-size", type=int, default=1)
-    # parser.add_argument("--grid-size", type=int, default=15)
-    parser.add_argument("--grid-size", type=int, default=30)
-    parser.add_argument("--k-step-action", type=int, default=4) # number of lookahead steps for the "single step" model
-    parser.add_argument("--maze",default=False, action="store_true")
+    parser.add_argument("--grid-size", type=int, default=15)
+    # parser.add_argument("--grid-size", type=int, default=30)
+    parser.add_argument("--k-step-action", type=int, default=4)  # number of lookahead steps for the "single step" model
+    parser.add_argument("--maze", default=False, action="store_true")
     parser.add_argument("--env-config", default=None)
     parser.add_argument("--env", default="nav2d")
     parser.add_argument("--random-goal", default=False, action="store_true")
@@ -104,7 +104,6 @@ def main():
     parser.add_argument("--name", type=str, default="")
     parser.add_argument("--save-path", type=str, default=".")
     args = parser.parse_args()
-
 
     with Pool(args.num_workers, initargs=(RLock(),), initializer=tqdm.set_lock) as p:
         buffers = p.starmap(
@@ -144,5 +143,7 @@ def main():
         f.attrs["cleared_goal_channel"] = not args.keep_goal_channel
         f.attrs["env"] = args.env
         f.attrs["env_config"] = -1 if args.env_config is None else args.env_config
+
+
 if __name__ == "__main__":
     main()
