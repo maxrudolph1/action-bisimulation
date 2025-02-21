@@ -184,21 +184,21 @@ def main(cfg: DictConfig):
         if ("final_observation" in infos) or ("terminal_observation" in infos):
             step_list.append(infos["steps_taken"])
             if (cfg.use_wandb):
-                # 200 episode avg
-                if len(step_list) % 200 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__200": sum(step_list[-200:]) / 200}, step=global_step)
-
-                # 50 episode avg
-                if len(step_list) % 50 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__50": sum(step_list[-50:]) / 50}, step=global_step)
-
-                # 25 episode avg
-                if len(step_list) % 25 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__25": sum(step_list[-25:]) / 25}, step=global_step)
-
-                # 10 episode avg
-                if len(step_list) % 10 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__10": sum(step_list[-10:]) / 10}, step=global_step)
+                # # 200 episode avg
+                # if len(step_list) % 200 == 0:
+                #     wandb.log({"reward_metrics/avg_steps_to_goal__200": sum(step_list[-200:]) / 200}, step=global_step)
+                #
+                # # 50 episode avg
+                # if len(step_list) % 50 == 0:
+                #     wandb.log({"reward_metrics/avg_steps_to_goal__50": sum(step_list[-50:]) / 50}, step=global_step)
+                #
+                # # 25 episode avg
+                # if len(step_list) % 25 == 0:
+                #     wandb.log({"reward_metrics/avg_steps_to_goal__25": sum(step_list[-25:]) / 25}, step=global_step)
+                #
+                # # 10 episode avg
+                # if len(step_list) % 10 == 0:
+                #     wandb.log({"reward_metrics/avg_steps_to_goal__10": sum(step_list[-10:]) / 10}, step=global_step)
 
                 wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
 

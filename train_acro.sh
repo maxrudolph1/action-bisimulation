@@ -45,4 +45,4 @@ python main.py algos='[acro]' n_epochs=80 name="acro_k2_l1_1e-3" algos.acro.l1_p
 # python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.0001 algos.acro.dynamic_l1_penalty=False algos.acro.k_steps=3 wandb=True train_evaluators=False
 
 # TESTING/SANDBOXING
-python main.py algos='[acro]' n_epochs=14 algos.acro.k_steps=1 wandb=True train_evaluators=False name=acro_k1_no_eval_test
+# python main.py algos='[acro]' n_epochs=14 algos.acro.k_steps=1 wandb=True train_evaluators=False name=acro_k1_no_eval_test
