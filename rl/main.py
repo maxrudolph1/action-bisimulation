@@ -1,5 +1,5 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/dqn/#dqnpy
-# import os
+import os
 import random
 import time
 # from dataclasses import dataclass
@@ -12,7 +12,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 # import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
-from torch.utils.tensorboard import SummaryWriter
 from environments.nav2d.nav2d_sb3 import Navigate2D
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -20,6 +19,11 @@ from models.gen_model_nets import GenEncoder
 import stable_baselines3 as sb3
 # import copy
 import imageio
+import datetime
+
+from tqdm import tqdm
+
+import pdb  # only used for debugging
 
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
@@ -42,8 +46,20 @@ def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, ob
 class QNetwork(nn.Module):
     def __init__(self, env, encoder_cfg):
         super().__init__()
-        obs_shape = env.single_observation_space.shape
-        self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+        obs_shape = env.single_observation_space.shape  # (3, 7, 7)
+
+        latent_path = encoder_cfg.get("latent_encoder_path")
+        if (latent_path) and (len(latent_path) > 0):
+            # FIXME: Try both freezing and not freezing the encoder (not sure which one is right now?)
+            self.encoder = torch.load(latent_path)['encoder']  # 64 dim latent space
+            # ASK:Help, this is only trained on 1, 3, 15, 15 images
+
+            # freeze the encoder weights
+            # for param in self.encoder.parameters():
+            #     param.requires_grad = False
+        else:
+            self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()  # base CNN; 64 dim latent space
+
         self.output_dim = self.encoder.output_dim
         self.q_value_head = nn.Linear(self.output_dim, env.single_action_space.n)
         self.encoder_cfg = encoder_cfg
@@ -51,7 +67,8 @@ class QNetwork(nn.Module):
 
     def forward(self, x):
         x = x.float() / 255.0
-        return self.q_value_head(self.encoder(x))
+        latent = self.encoder(x)
+        return self.q_value_head(latent)
 
     @classmethod
     def from_encoder_checkpoint(cls, env, encoder_checkpoint_path,):
@@ -79,24 +96,20 @@ def main(cfg: DictConfig):
             poetry run pip install "stable_baselines3==2.0.0a1"
             """)
     assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
-    run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
+
+    cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_name = f"{cfg.exp_name}__grid_{cfg.env.grid_size}_obstacles_{cfg.env.num_obstacles}__datetime_{cur_date_time}"
     if cfg.use_wandb:
         import wandb
 
         wandb.init(
             project=cfg.wandb_project_name,
             entity=cfg.wandb_entity,
-            sync_tensorboard=True,
             config=OmegaConf.to_container(cfg, resolve=True),
             name=run_name,
             monitor_gym=True,
             save_code=True,
         )
-    writer = SummaryWriter(f"runs/{run_name}")
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in OmegaConf.to_container(cfg, resolve=True).items()])),
-    )
 
     # TRY NOT TO MODIFY: seeding
     random.seed(cfg.seed)
@@ -132,25 +145,29 @@ def main(cfg: DictConfig):
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
+    step_list = []
+
     succ_ = np.zeros(50)
     ep_idx = 0
     obs, _ = envs.reset(seed=cfg.seed)
-    for global_step in range(cfg.total_timesteps):
+    # for global_step in range(cfg.total_timesteps):
+    for global_step in tqdm(range(cfg.total_timesteps), desc="global_steps", unit="step"):
         # ALGO LOGIC: put action logic here
         epsilon = linear_schedule(cfg.rl.start_epsilon, cfg.rl.end_epsilon, cfg.rl.exploration_fraction * cfg.total_timesteps, global_step)
         if random.random() < epsilon:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
         else:
-            if (obs.shape == (3, 7, 7)):
+            if obs.ndim == 3:
                 obs = np.expand_dims(obs, axis=0)
             # BUG: previous issue was that it wants obs of shape (1, 3, 7, 7), but it was missing the first dim sometimes
             q_values = q_network(torch.Tensor(obs).to(device))
             actions = torch.argmax(q_values, dim=1).cpu().numpy()
 
         # TRY NOT TO MODIFY: execute the game and log data.
-        next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+        next_obs, rewards, terminations, truncations, infos = envs.step(actions)  # rewards contain only 0s or a -1s
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
+        # BUG: this is never happening because of the way the envs.step is setup. There isn't a final_infos
         if "final_info" in infos:
             for info in infos["final_info"]:
                 if info and "episode" in info:
@@ -158,9 +175,32 @@ def main(cfg: DictConfig):
                     succ_[ep_idx % 50] = (info['episode']['r'] > -50)
                     ep_idx += 1
 
-                    writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                    writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
-                    writer.add_scalar("charts/success_rate", succ_.mean(), global_step)
+                    if cfg.use_wandb:
+                        # converting to wandb logging:
+                        wandb.log({"metrics/episodic_return": info["episode"]["r"]}, step=global_step)
+                        wandb.log({"metrics/episodic_length": info["episode"]["l"]}, step=global_step)
+                        wandb.log({"metrics/success_rate": succ_.mean()}, step=global_step)
+
+        if ("final_observation" in infos) or ("terminal_observation" in infos):
+            step_list.append(infos["steps_taken"])
+            if (cfg.use_wandb):
+                # 200 episode avg
+                if len(step_list) % 200 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__200": sum(step_list[-200:]) / 200}, step=global_step)
+
+                # 50 episode avg
+                if len(step_list) % 50 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__50": sum(step_list[-50:]) / 50}, step=global_step)
+
+                # 25 episode avg
+                if len(step_list) % 25 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__25": sum(step_list[-25:]) / 25}, step=global_step)
+
+                # 10 episode avg
+                if len(step_list) % 10 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__10": sum(step_list[-10:]) / 10}, step=global_step)
+
+                wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -181,14 +221,19 @@ def main(cfg: DictConfig):
                     td_target = data.rewards.flatten() + cfg.rl.gamma * target_max * (1 - data.dones.flatten())
                 old_val = q_network(data.observations).gather(1, data.actions).squeeze()
                 loss = F.mse_loss(td_target, old_val)
+                # TODO: LOGGING FOR REWARD
+                # The idea is to log the success rate (whether or not it reaches
+                # the goal) as well as the average steps taken to reach the goal
 
                 if global_step % 100 == 0:
-                    writer.add_scalar("losses/td_loss", loss, global_step)
-                    writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
-                    print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
-                    writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                    # if not cfg.use_wandb:
+                    #     print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
+                    if cfg.use_wandb:
+                        wandb.log({"losses/td_loss": loss}, step=global_step)
+                        wandb.log({"losses/q_values": old_val.mean().item()}, step=global_step)
+                        wandb.log({"metrics/SPS": int(global_step / (time.time() - start_time))}, step=global_step)
 
-                # optimize the model
+                # optimize the model (training the q_network)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -200,7 +245,7 @@ def main(cfg: DictConfig):
                         cfg.rl.tau * q_network_param.data + (1.0 - cfg.rl.tau) * target_network_param.data
                     )
 
-        if global_step % cfg.render_freq == 0:
+        if (global_step % cfg.render_freq == 0) or (global_step == cfg.total_timesteps - 1):  # makes sure that it renders at the end too
             frames = []
             for _ in range(5):
                 obs, _ = eval_env.reset()
@@ -211,10 +256,25 @@ def main(cfg: DictConfig):
                     obs, reward, terminated, truncated, infos = eval_env.step(actions)
                     frames.append(obs)
             frames = np.array(frames).transpose(0, 2, 3, 1)
-            imageio.mimsave('test.gif', frames, fps=5)
+            if cfg.use_wandb:
+                from moviepy import ImageSequenceClip
 
+                # Create a clip from the list of frames
+                clip = ImageSequenceClip(list(frames), fps=5)
+                temp_video_path = f"render_{global_step}.mp4"
+                # Write video file with a specific codec (libx264)
+                clip.write_videofile(
+                    temp_video_path,
+                    codec="libx264",
+                    audio=False,
+                    logger=None
+                )
+                # Log the video file to wandb
+                wandb.log({f"render/eval": wandb.Video(temp_video_path, format="mp4")})
 
-
+                os.remove(temp_video_path)
+            else:
+                imageio.mimsave('test.gif', frames, fps=5)
 
     if cfg.save_model:
         model_path = f"runs/{run_name}/{cfg.exp_name}.cleanrl_model"
@@ -233,10 +293,10 @@ def main(cfg: DictConfig):
             epsilon=0.05,
         )
         for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+            if cfg.use_wandb:
+                wandb.log({"eval/episodic_return": episodic_return}, step=idx)
 
     envs.close()
-    writer.close()
 
 
 if __name__ == "__main__":

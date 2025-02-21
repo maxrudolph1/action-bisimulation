@@ -86,13 +86,17 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--seed", default=7, type=int)
     parser.add_argument("--num-workers", default=16, type=int)
+    # parser.add_argument("--num-workers", default=8, type=int)
     parser.add_argument("--size", type=int, default=1000000)
+    # parser.add_argument("--size", type=int, default=250000)
     parser.add_argument("--epsilon", type=float, default=0.5)
     parser.add_argument("--num-obstacles", type=int, default=10)
+    # parser.add_argument("--num-obstacles", type=int, default=15)
     parser.add_argument("--obstacle-size", type=int, default=1)
     parser.add_argument("--grid-size", type=int, default=15)
-    parser.add_argument("--k-step-action", type=int, default=4) # number of lookahead steps for the "single step" model
-    parser.add_argument("--maze",default=False, action="store_true")
+    # parser.add_argument("--grid-size", type=int, default=30)
+    parser.add_argument("--k-step-action", type=int, default=4)  # number of lookahead steps for the "single step" model
+    parser.add_argument("--maze", default=False, action="store_true")
     parser.add_argument("--env-config", default=None)
     parser.add_argument("--env", default="nav2d")
     parser.add_argument("--random-goal", default=False, action="store_true")
@@ -100,7 +104,6 @@ def main():
     parser.add_argument("--name", type=str, default="")
     parser.add_argument("--save-path", type=str, default=".")
     args = parser.parse_args()
-
 
     with Pool(args.num_workers, initargs=(RLock(),), initializer=tqdm.set_lock) as p:
         buffers = p.starmap(
@@ -118,10 +121,10 @@ def main():
             ],
         )
     buffer = [x for b in buffers for x in b]
-    full_path = args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5"
+    full_path = args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}_num_obstacles_{args.num_obstacles}_grid_size_{args.grid_size}.hdf5"
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
     with h5py.File(
-        args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}.hdf5", "w"
+        args.save_path + f"/datasets/nav2d_dataset_s{args.seed}_e{args.epsilon}_size{args.size}_{args.name}_k_steps_{args.k_step_action}_num_obstacles_{args.num_obstacles}_grid_size_{args.grid_size}.hdf5", "w"
     ) as f:
         f["obs"] = np.array([x[0] for x in buffer])
         f["action"] = np.array([x[1] for x in buffer])
@@ -135,9 +138,12 @@ def main():
         f["kobs"] = np.array([x[9] for x in buffer])  # stores dataset_size, k-1 (skips obs next), 3, grid, grid, or data_size, 1 if not used
         f.attrs["k_step_action"] = args.k_step_action
         f.attrs["num_obstacles"] = args.num_obstacles
+        f.attrs["grid_size"] = args.grid_size
         f.attrs["static_goal"] = not args.random_goal
         f.attrs["cleared_goal_channel"] = not args.keep_goal_channel
         f.attrs["env"] = args.env
         f.attrs["env_config"] = -1 if args.env_config is None else args.env_config
+
+
 if __name__ == "__main__":
     main()

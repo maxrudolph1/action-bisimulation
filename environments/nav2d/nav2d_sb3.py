@@ -52,8 +52,7 @@ class Navigate2D(gym.Env):
         else:
             self.config = -1
         self.render_mode = 'rgb_array'
-        print(grid_size)
-
+        # print(grid_size)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -73,7 +72,7 @@ class Navigate2D(gym.Env):
                 maxY = np.minimum(center[1] + self.r_obs, self.size)
                 grid[0, minX:maxX, minY:maxY] = 1.0
                 obs[i] = center
-            
+
             min_center = self.size // 2 - self.r_obs
             max_center = self.size // 2 + self.r_obs
             grid[0, min_center:max_center, min_center:max_center] = 0.0
@@ -87,7 +86,7 @@ class Navigate2D(gym.Env):
             ]
 
             grid[1, start[0], start[1]] = 1.0
-            
+
             if self.static_goal:
                 goal = np.array([self.size // 2, self.size // 2])
                 grid[2, goal[0], goal[1]] = 1.0
@@ -102,7 +101,6 @@ class Navigate2D(gym.Env):
                 goal_x = goal[0] - self.r_obs
                 goal_y = goal[1] - self.r_obs
                 grid[0, goal_x:(goal_x+self.r_obs), goal_y:(goal_y+self.r_obs)] = 0.0
-            
 
             self.obstacles = obs
             self.pos = start
@@ -117,12 +115,13 @@ class Navigate2D(gym.Env):
 
     def step(self, action):
         self.step_count += 1
-        old_grid = self.grid.copy()
+        # old_grid = self.grid.copy()
         old_pos = self.pos.copy()
         try:
             new_pos = old_pos + self.actions[action]
         except:
-            import pdb; pdb.set_trace()
+            import pdb
+            pdb.set_trace()
         reward = -1
         if (
             np.all(new_pos >= 0)
@@ -137,14 +136,15 @@ class Navigate2D(gym.Env):
                 reward = 0
 
         terminated = (reward == 0)
-        
+
         truncated = (self.step_count >= self.max_timesteps)
-        
+
         info = {}
         info["pos"] = self.pos.copy()
         info["goal"] = self.goal.copy()
         info["dist"] = self.dist.copy()
         info["grid"] = self.grid.copy()
+        info["steps_taken"] = int(self.step_count)
         if terminated:
             info["terminal_observation"] = self._get_obs(self.grid, self.pos, self.goal)
         if truncated:

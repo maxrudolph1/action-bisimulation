@@ -102,8 +102,8 @@ def main(cfg: DictConfig):
 
     wandb_name = None
     if cfg.wandb:
-        name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        # name = f"{cfg.name}_{cur_date_time}"
+        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
+        name = f"{cfg.name}_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",
@@ -116,10 +116,6 @@ def main(cfg: DictConfig):
 
     random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
-
-    # loading just for the shapes
-    # dataset, obs_shape, act_shape = load_dataset(cfg.datasets[0])
-    # dataset = None
 
     models, evaluators = None, None
 
@@ -186,9 +182,15 @@ def train(
 
             train_step += 1
 
-    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    logdir = os.path.join(cfg.logdir, time_str)
+    # time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    # logdir = os.path.join(cfg.logdir, time_str)
+    #
+    # os.makedirs(logdir)
+    # for model_name, model in models.items():
+    #     model.save(logdir + f"/{model_name}.pt")
 
+    log_name = ((wandb_name + "_") if wandb_name is not None else cur_date_time) + ("ts_" + str(train_step))
+    logdir = os.path.join(cfg.logdir, log_name)
     os.makedirs(logdir)
     for model_name, model in models.items():
         model.save(logdir + f"/{model_name}.pt")

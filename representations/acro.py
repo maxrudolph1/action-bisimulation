@@ -121,6 +121,7 @@ class Acro(torch.nn.Module):
         self.last_ret = ret
         return ret
 
+    # TODO: potentially save as statedict + config dump
     def save(self, path):
         torch.save(
             {
