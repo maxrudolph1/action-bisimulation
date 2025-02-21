@@ -144,6 +144,7 @@ class Navigate2D(gym.Env):
         info["goal"] = self.goal.copy()
         info["dist"] = self.dist.copy()
         info["grid"] = self.grid.copy()
+        info["steps_taken"] = int(self.step_count)
         if terminated:
             info["terminal_observation"] = self._get_obs(self.grid, self.pos, self.goal)
         if truncated:

@@ -142,6 +142,8 @@ def main(cfg: DictConfig):
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
+    step_list = []
+
     succ_ = np.zeros(50)
     ep_idx = 0
     obs, _ = envs.reset(seed=cfg.seed)
@@ -169,15 +171,54 @@ def main(cfg: DictConfig):
                     succ_[ep_idx % 50] = (info['episode']['r'] > -50)
                     ep_idx += 1
 
-                    # writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                    # writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
-                    # writer.add_scalar("charts/success_rate", succ_.mean(), global_step)
+                    # writer.add_scalar("metrics/episodic_return", info["episode"]["r"], global_step)
+                    # writer.add_scalar("metrics/episodic_length", info["episode"]["l"], global_step)
+                    # writer.add_scalar("metrics/success_rate", succ_.mean(), global_step)
 
                     if cfg.use_wandb:
                         # converting to wandb logging:
-                        wandb.log({"charts/episodic_return": info["episode"]["r"]}, step=global_step)
-                        wandb.log({"charts/episodic_length": info["episode"]["l"]}, step=global_step)
-                        wandb.log({"charts/success_rate": succ_.mean()}, step=global_step)
+                        wandb.log({"metrics/episodic_return": info["episode"]["r"]}, step=global_step)
+                        wandb.log({"metrics/episodic_length": info["episode"]["l"]}, step=global_step)
+                        wandb.log({"metrics/success_rate": succ_.mean()}, step=global_step)
+
+        if ("final_observation" in infos) or ("terminal_observation" in infos):
+            step_list.append(infos["steps_taken"])
+            # 200 episode avg
+            if len(step_list) % 200 == 0:
+                avg_steps = sum(step_list[-200:]) / 200
+                if (cfg.use_wandb):
+                    wandb.log({"reward_metrics/avg_steps_to_goal__200": avg_steps}, step=global_step)
+                else:
+                    print(f"Avg (200) Steps to goal: {avg_steps}")
+
+            # 50 episode avg
+            if len(step_list) % 50 == 0:
+                avg_steps = sum(step_list[-50:]) / 50
+                if (cfg.use_wandb):
+                    wandb.log({"reward_metrics/avg_steps_to_goal__50": avg_steps}, step=global_step)
+                else:
+                    print(f"Avg (50) Steps to goal: {avg_steps}")
+
+            # 25 episode avg
+            if len(step_list) % 25 == 0:
+                avg_steps = sum(step_list[-25:]) / 25
+                if (cfg.use_wandb):
+                    wandb.log({"reward_metrics/avg_steps_to_goal__25": avg_steps}, step=global_step)
+                else:
+                    print(f"Avg (25) Steps to goal: {avg_steps}")
+
+            # 10 episode avg
+            if len(step_list) % 10 == 0:
+                avg_steps = sum(step_list[-10:]) / 10
+                if (cfg.use_wandb):
+                    wandb.log({"reward_metrics/avg_steps_to_goal__10": avg_steps}, step=global_step)
+                else:
+                    print(f"Avg (10) Steps to goal: {avg_steps}")
+
+            if cfg.use_wandb:
+                wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
+            else:
+                print(f"Episode finished in {infos['steps_taken']} steps")
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -199,17 +240,19 @@ def main(cfg: DictConfig):
                 old_val = q_network(data.observations).gather(1, data.actions).squeeze()
                 loss = F.mse_loss(td_target, old_val)
                 # TODO: LOGGING FOR REWARD
+                # The idea is to log the success rate (whether or not it reaches
+                # the goal) as well as the average steps taken to reach the goal
 
                 if global_step % 100 == 0:
                     # writer.add_scalar("losses/td_loss", loss, global_step)
                     # writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
                     if not cfg.use_wandb:
                         print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
-                    # writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                    # writer.add_scalar("metrics/SPS", int(global_step / (time.time() - start_time)), global_step)
                     if cfg.use_wandb:
                         wandb.log({"losses/td_loss": loss}, step=global_step)
                         wandb.log({"losses/q_values": old_val.mean().item()}, step=global_step)
-                        wandb.log({"charts/SPS": int(global_step / (time.time() - start_time))}, step=global_step)
+                        wandb.log({"metrics/SPS": int(global_step / (time.time() - start_time))}, step=global_step)
 
                 # optimize the model (training the q_network)
                 optimizer.zero_grad()
