@@ -54,9 +54,9 @@ class QNetwork(nn.Module):
             self.encoder = torch.load(latent_path)['encoder']  # 64 dim latent space
             # ASK:Help, this is only trained on 1, 3, 15, 15 images
 
-            # TODO: freeze the encoder weights
-            for param in self.encoder.parameters():
-                param.requires_grad = False
+            # freeze the encoder weights
+            # for param in self.encoder.parameters():
+            #     param.requires_grad = False
         else:
             self.encoder = GenEncoder(obs_shape, cfg=encoder_cfg).cuda()  # base CNN; 64 dim latent space
 

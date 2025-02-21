@@ -1,8 +1,8 @@
 logdir: 'results'
 datasets: [
-  '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s0_e0.5_size1000000__k_steps_4.hdf5',
-  '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s5_e0.5_size1000000__k_steps_4.hdf5',
-  # '/home/ekuo/bisim/master-branch-actbisim/datasets/nav2d_dataset_s7_e0.5_size1000000__k_steps_4.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_15/nav2d_dataset_s0_e0.5_size1000000__k_steps_4.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_15/nav2d_dataset_s5_e0.5_size1000000__k_steps_4.hdf5',
+  # '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_15/nav2d_dataset_s7_e0.5_size1000000__k_steps_4.hdf5',
 ]
 name: 'default_run_name'
 wandb: False
