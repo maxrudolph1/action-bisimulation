@@ -22,6 +22,8 @@ import stable_baselines3 as sb3
 import imageio
 import datetime
 
+from tqdm import tqdm
+
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
     capture_video = False
@@ -89,7 +91,7 @@ def main(cfg: DictConfig):
     assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
 
     cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_name = f"{cfg.exp_name}__S_{cfg.seed}__{cur_date_time}"
+    run_name = f"{cfg.exp_name}__grid_{cfg.env.grid_size}_obstacles_{cfg.env.num_obstacles}__datetime_{cur_date_time}"
     if cfg.use_wandb:
         import wandb
 
@@ -147,7 +149,8 @@ def main(cfg: DictConfig):
     succ_ = np.zeros(50)
     ep_idx = 0
     obs, _ = envs.reset(seed=cfg.seed)
-    for global_step in range(cfg.total_timesteps):
+    # for global_step in range(cfg.total_timesteps):
+    for global_step in tqdm(range(cfg.total_timesteps), desc="global_steps", unit="step"):
         # ALGO LOGIC: put action logic here
         epsilon = linear_schedule(cfg.rl.start_epsilon, cfg.rl.end_epsilon, cfg.rl.exploration_fraction * cfg.total_timesteps, global_step)
         if random.random() < epsilon:
@@ -183,42 +186,24 @@ def main(cfg: DictConfig):
 
         if ("final_observation" in infos) or ("terminal_observation" in infos):
             step_list.append(infos["steps_taken"])
-            # 200 episode avg
-            if len(step_list) % 200 == 0:
-                avg_steps = sum(step_list[-200:]) / 200
-                if (cfg.use_wandb):
-                    wandb.log({"reward_metrics/avg_steps_to_goal__200": avg_steps}, step=global_step)
-                else:
-                    print(f"Avg (200) Steps to goal: {avg_steps}")
+            if (cfg.use_wandb):
+                # 200 episode avg
+                if len(step_list) % 200 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__200": sum(step_list[-200:]) / 200}, step=global_step)
 
-            # 50 episode avg
-            if len(step_list) % 50 == 0:
-                avg_steps = sum(step_list[-50:]) / 50
-                if (cfg.use_wandb):
-                    wandb.log({"reward_metrics/avg_steps_to_goal__50": avg_steps}, step=global_step)
-                else:
-                    print(f"Avg (50) Steps to goal: {avg_steps}")
+                # 50 episode avg
+                if len(step_list) % 50 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__50": sum(step_list[-50:]) / 50}, step=global_step)
 
-            # 25 episode avg
-            if len(step_list) % 25 == 0:
-                avg_steps = sum(step_list[-25:]) / 25
-                if (cfg.use_wandb):
-                    wandb.log({"reward_metrics/avg_steps_to_goal__25": avg_steps}, step=global_step)
-                else:
-                    print(f"Avg (25) Steps to goal: {avg_steps}")
+                # 25 episode avg
+                if len(step_list) % 25 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__25": sum(step_list[-25:]) / 25}, step=global_step)
 
-            # 10 episode avg
-            if len(step_list) % 10 == 0:
-                avg_steps = sum(step_list[-10:]) / 10
-                if (cfg.use_wandb):
-                    wandb.log({"reward_metrics/avg_steps_to_goal__10": avg_steps}, step=global_step)
-                else:
-                    print(f"Avg (10) Steps to goal: {avg_steps}")
+                # 10 episode avg
+                if len(step_list) % 10 == 0:
+                    wandb.log({"reward_metrics/avg_steps_to_goal__10": sum(step_list[-10:]) / 10}, step=global_step)
 
-            if cfg.use_wandb:
                 wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
-            else:
-                print(f"Episode finished in {infos['steps_taken']} steps")
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -291,12 +276,12 @@ def main(cfg: DictConfig):
                     logger=None
                 )
                 # Log the video file to wandb
-                wandb.log({"render": wandb.Video(temp_video_path, format="mp4")})
+                wandb.log({f"render/eval": wandb.Video(temp_video_path, format="mp4")})
 
                 os.remove(temp_video_path)
             else:
                 imageio.mimsave('test.gif', frames, fps=5)
-            print("rendered test.gif at global_step", global_step)
+            # print("rendered test.gif at global_step", global_step)
 
     if cfg.save_model:
         model_path = f"runs/{run_name}/{cfg.exp_name}.cleanrl_model"
