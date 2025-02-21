@@ -20,6 +20,7 @@ from models.gen_model_nets import GenEncoder
 import stable_baselines3 as sb3
 # import copy
 import imageio
+import datetime
 
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
@@ -86,24 +87,26 @@ def main(cfg: DictConfig):
             poetry run pip install "stable_baselines3==2.0.0a1"
             """)
     assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
-    run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
+
+    cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_name = f"{cfg.exp_name}__S_{cfg.seed}__{cur_date_time}"
     if cfg.use_wandb:
         import wandb
 
         wandb.init(
             project=cfg.wandb_project_name,
             entity=cfg.wandb_entity,
-            sync_tensorboard=True,
+            # sync_tensorboard=True,
             config=OmegaConf.to_container(cfg, resolve=True),
             name=run_name,
             monitor_gym=True,
             save_code=True,
         )
-    writer = SummaryWriter(f"runs/{run_name}")
-    writer.add_text(
-        "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in OmegaConf.to_container(cfg, resolve=True).items()])),
-    )
+    # writer = SummaryWriter(f"runs/{run_name}")
+    # writer.add_text(
+    #     "hyperparameters",
+    #     "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in OmegaConf.to_container(cfg, resolve=True).items()])),
+    # )
 
     # TRY NOT TO MODIFY: seeding
     random.seed(cfg.seed)
@@ -148,7 +151,6 @@ def main(cfg: DictConfig):
         if random.random() < epsilon:
             actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
         else:
-            # if (obs.shape == (3, 7, 7)): HACK: this is a bit hardcoded. the below should work better for different grid_sizes
             if obs.ndim == 3:
                 obs = np.expand_dims(obs, axis=0)
             # BUG: previous issue was that it wants obs of shape (1, 3, 7, 7), but it was missing the first dim sometimes
@@ -156,9 +158,10 @@ def main(cfg: DictConfig):
             actions = torch.argmax(q_values, dim=1).cpu().numpy()
 
         # TRY NOT TO MODIFY: execute the game and log data.
-        next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+        next_obs, rewards, terminations, truncations, infos = envs.step(actions)  # rewards contain only 0s or a -1s
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
+        # BUG: this is never happening because of the way the envs.step is setup. There isn't a final_infos
         if "final_info" in infos:
             for info in infos["final_info"]:
                 if info and "episode" in info:
@@ -166,9 +169,15 @@ def main(cfg: DictConfig):
                     succ_[ep_idx % 50] = (info['episode']['r'] > -50)
                     ep_idx += 1
 
-                    writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                    writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
-                    writer.add_scalar("charts/success_rate", succ_.mean(), global_step)
+                    # writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
+                    # writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                    # writer.add_scalar("charts/success_rate", succ_.mean(), global_step)
+
+                    if cfg.use_wandb:
+                        # converting to wandb logging:
+                        wandb.log({"charts/episodic_return": info["episode"]["r"]}, step=global_step)
+                        wandb.log({"charts/episodic_length": info["episode"]["l"]}, step=global_step)
+                        wandb.log({"charts/success_rate": succ_.mean()}, step=global_step)
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -192,13 +201,17 @@ def main(cfg: DictConfig):
                 # TODO: LOGGING FOR REWARD
 
                 if global_step % 100 == 0:
-                    writer.add_scalar("losses/td_loss", loss, global_step)
-                    writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
+                    # writer.add_scalar("losses/td_loss", loss, global_step)
+                    # writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
                     if not cfg.use_wandb:
                         print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
-                    writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                    # writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                    if cfg.use_wandb:
+                        wandb.log({"losses/td_loss": loss}, step=global_step)
+                        wandb.log({"losses/q_values": old_val.mean().item()}, step=global_step)
+                        wandb.log({"charts/SPS": int(global_step / (time.time() - start_time))}, step=global_step)
 
-                # optimize the model
+                # optimize the model (training the q_network)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -259,10 +272,12 @@ def main(cfg: DictConfig):
             epsilon=0.05,
         )
         for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+            # writer.add_scalar("eval/episodic_return", episodic_return, idx)
+            if cfg.use_wandb:
+                wandb.log({"eval/episodic_return": episodic_return}, step=idx)
 
     envs.close()
-    writer.close()
+    # writer.close()
 
 
 if __name__ == "__main__":
