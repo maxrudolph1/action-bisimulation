@@ -1,0 +1,57 @@
+82c82,83
+<     run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
+---
+>     # run_name = f"{cfg.exp_name}__{cfg.seed}__{int(time.time())}"
+>     run_name = f"fixed_{cfg.exp_name}__{cfg.seed}__{int(time.time())}__grid{cfg.env.grid_size}__obs{cfg.env.num_obstacles}__diam{cfg.env.obstacle_diameter}"
+176,179d176
+<         # # TODO: Logic for representation model input here
+<         # if (cfg.encoder_path is not None):
+<         #     pass
+< 
+193,194c190
+<                     if not cfg.use_wandb:
+<                         print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
+---
+>                     print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
+209c205
+<         if (global_step % cfg.render_freq == 0) or (global_step == cfg.total_timesteps - 1):  # makes sure that it renders at the end too
+---
+>         if global_step % cfg.render_freq == 0:
+220,221c216,225
+<             if cfg.use_wandb:
+<                 from moviepy import ImageSequenceClip
+---
+>             timestamp = time.strftime("%Y%m%d-%H%M%S")
+>             # imageio.mimsave(f'test_{timestamp}_{cfg.exp_name}__{cfg.seed}__{int(time.time())}__grid{cfg.env.grid_size}__obs{cfg.env.num_obstacles}__diam{cfg.env.obstacle_diameter}.gif', frames, fps=5)
+>             try:
+>                 imageio.mimsave(f'test_gifs/{timestamp}_{cfg.exp_name}__{cfg.seed}__{int(time.time())}__grid{cfg.env.grid_size}__obs{cfg.env.num_obstacles}__diam{cfg.env.obstacle_diameter}.gif', frames, fps=5)
+>             except Exception as e:
+>                 with open(f'error_{timestamp}.txt', 'w') as f:
+>                     f.write(f"Failed to save gif: {e}\n")
+> 
+> 
+> 
+223,240d226
+<                 # Create a clip from the list of frames
+<                 clip = ImageSequenceClip(list(frames), fps=5)
+<                 temp_video_path = f"render_{global_step}.mp4"
+<                 # Write video file with a specific codec (libx264)
+<                 clip.write_videofile(
+<                     temp_video_path,
+<                     codec="libx264",
+<                     audio=False,
+<                     logger=None
+<                 )
+<                 # Log the video file to wandb
+<                 wandb.log({"render": wandb.Video(temp_video_path, format="mp4")})
+< 
+<                 # video_tensor = torch.tensor(frames).permute(0, 3, 1, 2)[None]  
+<                 # writer.add_video("render_video", video_tensor, global_step, fps=5)
+<             else:
+<                 imageio.mimsave('test.gif', frames, fps=5)
+<             print("rendered test.gif at global_step", global_step)
+267c253
+<     main()
+\ No newline at end of file
+---
+>     main()

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+cd rl 
+
+
+for grid_size in $(seq 10 10 30); do
+  min_obstacles=$((grid_size * grid_size * 1 / 10 / 4))  # 10% grid size
+  max_obstacles=$((grid_size * grid_size * 3 / 5 / 4))  #60% grid size
+
+  #rounding to nearest 10
+  min_obstacles=$(( (min_obstacles + 5) / 10 * 10 ))
+
+  
+  obstacle_numbers=($(seq $min_obstacles 10 $max_obstacles))
+
+  #pick 10 highest
+  highest_obstacles=("${obstacle_numbers[@]: -10}")
+  #case less than 10
+  if [ "${#highest_obstacles[@]}" -eq 0 ]; then
+    highest_obstacles=("${obstacle_numbers[@]}")
+  fi
+
+  # run
+  for num_obstacles in "${highest_obstacles[@]}"; do
+    echo "Running with grid_size=$grid_size, num_obstacles=$num_obstacles"
+    python main.py env.grid_size=$grid_size env.num_obstacles=$num_obstacles env.obstacle_diameter=1
+  done
+done

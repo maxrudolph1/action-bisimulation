@@ -8,13 +8,13 @@ freeze_encoder: false
 
 # eval arguments
 logger: "wandb" 
-wandb_project_name: "nav2d"
-wandb_entity: "evan-kuo-edu"
+wandb_project_name: "nav2d_rl"
+wandb_entity: "rhearai-university-of-texas-at-austin"
 capture_video: false
 save_buffer_name: null
 save_model: False
 
-use_wandb: False
+use_wandb: True
 render_freq: 25000
 eval_freq: 1000
 total_timesteps: 500000
@@ -57,7 +57,7 @@ encoder:
   # latent_encoder_path: '/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k2_gamma_85_gamma_0.85_2025-02-20_13-08-37_ts_234420/multi_step.pt'
 
   # acro
-  latent_encoder_path: '/home/ekuo/bisim/master-branch-actbisim/results/acro_k2_l1_1e-4_2025-02-21_03-10-28_ts_312640/acro.pt'
+  # latent_encoder_path: #'/home/ekuo/bisim/master-branch-actbisim/results/acro_k2_l1_1e-4_2025-02-21_03-10-28_ts_312640/acro.pt'
 
   # No encoder
-  # latent_encoder_path: ''
+  latent_encoder_path: ''
