@@ -73,7 +73,7 @@ class Acro(torch.nn.Module):
         else:
             forward_model_loss = 0
 
-        if self.l1_penalty > 0:
+        if self.l1_penaty > 0:
             l1_loss = (
                 torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean()
                 + torch.linalg.vector_norm(on_encoded, ord=1, dim=1).mean()

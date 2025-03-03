@@ -18,13 +18,14 @@ cd rl
 
 
 # grid 30
-python main.py use_wandb=True env.grid_size=30 env.num_obstacles=20 env.max_timesteps=70 total_timesteps=550000 exp_name="vanilla_dqn_gridsweep_30_20" encoder.latent_encoder_path=""
-python main.py use_wandb=True env.grid_size=30 env.num_obstacles=25 env.max_timesteps=70 total_timesteps=550000 exp_name="vanilla_dqn_gridsweep_30_25" encoder.latent_encoder_path=""
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=50 env.max_timesteps=70 total_timesteps=550000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=30 env.num_obstacles=55 env.max_timesteps=70 total_timesteps=550000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=30 env.num_obstacles=60 env.max_timesteps=70 total_timesteps=550000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
 
 # grid 40
-python main.py use_wandb=True env.grid_size=40 env.num_obstacles=25 env.max_timesteps=90 total_timesteps=600000 exp_name="vanilla_dqn_gridsweep_40_25" encoder.latent_encoder_path=""
-python main.py use_wandb=True env.grid_size=40 env.num_obstacles=30 env.max_timesteps=90 total_timesteps=600000 exp_name="vanilla_dqn_gridsweep_40_30" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=40 env.num_obstacles=25 env.max_timesteps=90 total_timesteps=600000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=40 env.num_obstacles=30 env.max_timesteps=90 total_timesteps=600000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
 
 # grid 45
-python main.py use_wandb=True env.grid_size=45 env.num_obstacles=30 env.max_timesteps=100 total_timesteps=600000 exp_name="vanilla_dqn_gridsweep_45_30" encoder.latent_encoder_path=""
-python main.py use_wandb=True env.grid_size=45 env.num_obstacles=35 env.max_timesteps=100 total_timesteps=600000 exp_name="vanilla_dqn_gridsweep_45_35" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=45 env.num_obstacles=30 env.max_timesteps=100 total_timesteps=600000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=45 env.num_obstacles=35 env.max_timesteps=100 total_timesteps=600000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
