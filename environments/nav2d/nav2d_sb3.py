@@ -46,6 +46,7 @@ class Navigate2D(gym.Env):
         self.dist = None
         self.np_random = None
         self.step_count = 0
+        self.cumulative_reward = 0
         if env_config is not None and env_config != -1:
             with open(env_config, 'r') as file:
                 self.config = yaml.load(file)
@@ -62,6 +63,7 @@ class Navigate2D(gym.Env):
     def reset(self, seed=0, options=None):
         while True:
             self.step_count = 0
+            self.cumulative_reward = 0
             grid = np.zeros((3, self.size, self.size), dtype=np.float32)
             obs = np.zeros((self.n_obs, 2), dtype=np.uint8)
             for i in range(self.n_obs):
@@ -134,6 +136,7 @@ class Navigate2D(gym.Env):
             np.copyto(self.pos, new_pos)
             if np.all(new_pos == self.goal):
                 reward = 0
+        self.cumulative_reward += reward
 
         terminated = (reward == 0)
 
@@ -145,6 +148,8 @@ class Navigate2D(gym.Env):
         info["dist"] = self.dist.copy()
         info["grid"] = self.grid.copy()
         info["steps_taken"] = int(self.step_count)
+        info["cumulative_reward"] = int(self.cumulative_reward)
+        info["success"] = terminated
         if terminated:
             info["terminal_observation"] = self._get_obs(self.grid, self.pos, self.goal)
         if truncated:
