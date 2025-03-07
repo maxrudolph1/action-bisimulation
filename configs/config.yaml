@@ -3,10 +3,16 @@ datasets: [
   # '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_15/nav2d_dataset_s0_e0.5_size1000000__k_steps_4.hdf5',
   # '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_15/nav2d_dataset_s5_e0.5_size1000000__k_steps_4.hdf5',
 
-  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s0_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
-  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s3_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
-  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s5_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
-  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s7_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
+  # '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s0_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
+  # '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s3_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
+  # '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s5_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
+  # '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30/nav2d_dataset_s7_e0.5_size250000__k_steps_4_num_obstacles_15_grid_size_30.hdf5',
+
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30_obs_100/nav2d_dataset_s0_e0.5_size250000__k_steps_4_num_obstacles_100_grid_size_30.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30_obs_100/nav2d_dataset_s3_e0.5_size250000__k_steps_4_num_obstacles_100_grid_size_30.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30_obs_100/nav2d_dataset_s5_e0.5_size250000__k_steps_4_num_obstacles_100_grid_size_30.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30_obs_100/nav2d_dataset_s7_e0.5_size250000__k_steps_4_num_obstacles_100_grid_size_30.hdf5',
+  '/home/ekuo/bisim/master-branch-actbisim/datasets/grid_30_obs_100/nav2d_dataset_s11_e0.5_size250000__k_steps_4_num_obstacles_100_grid_size_30.hdf5',
 ]
 name: 'default_run_name'
 wandb: False
@@ -17,6 +23,7 @@ batch_size: 256
 met_log_freq: 10
 img_log_freq: 1000
 train_evaluators: True
+eval_encoder: ''
 defaults:
   - algos: single_step
   - algos/evaluators@evaluators

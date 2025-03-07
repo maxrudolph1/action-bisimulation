@@ -25,6 +25,8 @@ from representations.multi_step import MultiStep
 from representations.bvae import BetaVariationalAutoencoder
 from representations.evaluators import Evaluators
 
+from call_rl_main import call_rl
+
 
 MODEL_DICT = {'single_step': SingleStep,
               'multi_step': MultiStep,
@@ -103,7 +105,8 @@ def main(cfg: DictConfig):
     wandb_name = None
     if cfg.wandb:
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        name = f"{cfg.name}_{cur_date_time}"
+        # name = f"{cfg.name}_{cur_date_time}"
+        name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_30_obstcls_100_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",
@@ -131,7 +134,7 @@ def main(cfg: DictConfig):
             models = initialize_dependant_models(models)
             first_dataset = False
 
-        train_step = train(
+        train_step, save_paths, log_name = train(
             cfg,
             dataset,
             models,
@@ -141,6 +144,15 @@ def main(cfg: DictConfig):
             cur_date_time
         )
         dataset = None
+
+    if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
+        call_rl(
+            name=("dqn_" + log_name),
+            grid_size=30,
+            num_obstacles=100,
+            latent_encoder_path=save_paths[cfg.eval_encoder],
+        )
+
 
 
 def train(
@@ -192,10 +204,15 @@ def train(
     log_name = ((wandb_name + "_") if wandb_name is not None else cur_date_time) + ("ts_" + str(train_step))
     logdir = os.path.join(cfg.logdir, log_name)
     os.makedirs(logdir)
-    for model_name, model in models.items():
-        model.save(logdir + f"/{model_name}.pt")
 
-    return train_step
+    save_paths = {}
+    for model_name, model in models.items():
+        path = logdir + f"/{model_name}.pt"
+        model.save(path)
+        save_paths[model_name] = path
+        print(f"Saved {model_name} to {path}")
+
+    return train_step, save_paths, log_name
 
 
 if __name__ == "__main__":

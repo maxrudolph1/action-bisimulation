@@ -85,6 +85,10 @@ def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
+    run_rl(cfg)
+
+
+def run_rl(cfg: DictConfig):
     if sb3.__version__ < "2.0":
         raise ValueError(
             """Ongoing migration: run the following command to install the new dependencies:
