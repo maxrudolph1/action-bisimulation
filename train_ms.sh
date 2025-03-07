@@ -19,7 +19,7 @@
 # python main.py algos='[multi_step]' name='ms_acro_k2_sweeps' n_epochs=30 algos.multi_step.gamma=0.98 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/evan-master-action-bisimulation/results/acro_sweeps_k2_l1_0.0001_2025-01-25_13-44-59_ts_625120/acro.pt'
 
 # NOTE: Best sweep runs (do them again)
-python main.py algos='[multi_step]' name='ms_acro_k2_gamma_85' n_epochs=30 algos.multi_step.gamma=0.85 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/evan-master-action-bisimulation/results/acro_sweeps_k2_l1_0.0001_2025-01-25_13-44-59_ts_625120/acro.pt'
+# python main.py algos='[multi_step]' name='ms_acro_k2_gamma_85' n_epochs=30 algos.multi_step.gamma=0.85 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/evan-master-action-bisimulation/results/acro_sweeps_k2_l1_0.0001_2025-01-25_13-44-59_ts_625120/acro.pt'
 # python main.py algos='[multi_step]' name='ms_acro_k2_gamma_88' n_epochs=30 algos.multi_step.gamma=0.88 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/evan-master-action-bisimulation/results/acro_sweeps_k2_l1_0.0001_2025-01-25_13-44-59_ts_625120/acro.pt'
 
 # K=3
@@ -37,3 +37,11 @@ python main.py algos='[multi_step]' name='ms_acro_k2_gamma_85' n_epochs=30 algos
 # NOTE: Best sweep runs (do them again)
 # python main.py algos='[multi_step]' name='ms_acro_k3_gamma_82' n_epochs=30 algos.multi_step.gamma=0.82 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/evan-master-action-bisimulation/results/acro_sweeps_k3_l1_0.0001_2025-01-26_00-29-55_ts_625120/acro.pt'
 # python main.py algos='[multi_step]' name='ms_acro_k3_gamma_85' n_epochs=30 algos.multi_step.gamma=0.85 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/evan-master-action-bisimulation/results/acro_sweeps_k3_l1_0.0001_2025-01-26_00-29-55_ts_625120/acro.pt'
+
+
+# ACRO with BISIM (K=2)
+python main.py algos='[multi_step]' name='ms_acro_k2_gamma_82' n_epochs=30 algos.multi_step.gamma=0.82 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/master-branch-actbisim/results/acro_k2_l1_1e-4_2025-02-21_03-10-28_ts_312640/acro.pt'
+python main.py algos='[multi_step]' name='ms_acro_k2_gamma_85' n_epochs=30 algos.multi_step.gamma=0.85 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/master-branch-actbisim/results/acro_k2_l1_1e-4_2025-02-21_03-10-28_ts_312640/acro.pt'
+python main.py algos='[multi_step]' name='ms_acro_k2_gamma_88' n_epochs=30 algos.multi_step.gamma=0.88 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/master-branch-actbisim/results/acro_k2_l1_1e-4_2025-02-21_03-10-28_ts_312640/acro.pt'
+python main.py algos='[multi_step]' name='ms_acro_k2_gamma_95' n_epochs=30 algos.multi_step.gamma=0.95 algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/master-branch-actbisim/results/acro_k2_l1_1e-4_2025-02-21_03-10-28_ts_312640/acro.pt'
+

@@ -84,17 +84,17 @@ def collect(num, idx, seed, epsilon, num_obstacles, args):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("--seed", default=7, type=int)
-    parser.add_argument("--num-workers", default=16, type=int)
-    # parser.add_argument("--num-workers", default=8, type=int)
-    parser.add_argument("--size", type=int, default=1000000)
-    # parser.add_argument("--size", type=int, default=250000)
+    parser.add_argument("--seed", default=11, type=int)  # default
+    # parser.add_argument("--num-workers", default=16, type=int)  # default
+    parser.add_argument("--num-workers", default=8, type=int)
+    # parser.add_argument("--size", type=int, default=1000000)  # default
+    parser.add_argument("--size", type=int, default=250000)
     parser.add_argument("--epsilon", type=float, default=0.5)
-    parser.add_argument("--num-obstacles", type=int, default=10)
-    # parser.add_argument("--num-obstacles", type=int, default=15)
+    # parser.add_argument("--num-obstacles", type=int, default=10)  # default
+    parser.add_argument("--num-obstacles", type=int, default=100)
     parser.add_argument("--obstacle-size", type=int, default=1)
-    parser.add_argument("--grid-size", type=int, default=15)
-    # parser.add_argument("--grid-size", type=int, default=30)
+    # parser.add_argument("--grid-size", type=int, default=15)  # default
+    parser.add_argument("--grid-size", type=int, default=30)
     parser.add_argument("--k-step-action", type=int, default=4)  # number of lookahead steps for the "single step" model
     parser.add_argument("--maze", default=False, action="store_true")
     parser.add_argument("--env-config", default=None)

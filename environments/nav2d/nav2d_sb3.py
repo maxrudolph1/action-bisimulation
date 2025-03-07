@@ -46,6 +46,8 @@ class Navigate2D(gym.Env):
         self.dist = None
         self.np_random = None
         self.step_count = 0
+        self.cumulative_reward = 0
+        self.optimal_path_length = -1
         if env_config is not None and env_config != -1:
             with open(env_config, 'r') as file:
                 self.config = yaml.load(file)
@@ -62,6 +64,7 @@ class Navigate2D(gym.Env):
     def reset(self, seed=0, options=None):
         while True:
             self.step_count = 0
+            self.cumulative_reward = 0
             grid = np.zeros((3, self.size, self.size), dtype=np.float32)
             obs = np.zeros((self.n_obs, 2), dtype=np.uint8)
             for i in range(self.n_obs):
@@ -108,7 +111,10 @@ class Navigate2D(gym.Env):
             self.grid = grid
             self.dist = np.linalg.norm(start - goal, ord=1)
 
-            if self.find_path() is not None:
+            optimal_path = self.find_path()
+
+            if optimal_path is not None:
+                self.optimal_path_length = len(optimal_path)
                 break
 
         return self._get_obs(self.grid, self.pos, self.goal), {}
@@ -134,6 +140,7 @@ class Navigate2D(gym.Env):
             np.copyto(self.pos, new_pos)
             if np.all(new_pos == self.goal):
                 reward = 0
+        self.cumulative_reward += reward
 
         terminated = (reward == 0)
 
@@ -144,7 +151,10 @@ class Navigate2D(gym.Env):
         info["goal"] = self.goal.copy()
         info["dist"] = self.dist.copy()
         info["grid"] = self.grid.copy()
+        info["optimal_path_length"] = self.optimal_path_length
         info["steps_taken"] = int(self.step_count)
+        info["cumulative_reward"] = int(self.cumulative_reward)
+        info["success"] = terminated
         if terminated:
             info["terminal_observation"] = self._get_obs(self.grid, self.pos, self.goal)
         if truncated:
@@ -167,11 +177,7 @@ class Navigate2D(gym.Env):
             visited.add(pos)
             for i, action in enumerate(self.actions):
                 new_pos = np.array(pos) + action
-                if (
-                    np.all(new_pos >= 0)
-                    and np.all(new_pos < self.size)
-                    and not self.grid[0, new_pos[0], new_pos[1]]
-                ):
+                if (np.all(new_pos >= 0) and np.all(new_pos < self.size) and not self.grid[0, new_pos[0], new_pos[1]]):
                     heapq.heappush(
                         queue,
                         (

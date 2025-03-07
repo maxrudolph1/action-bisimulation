@@ -2,28 +2,23 @@
 import os
 import random
 import time
-# from dataclasses import dataclass
-
 import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-# import tyro
 from stable_baselines3.common.buffers import ReplayBuffer
 from environments.nav2d.nav2d_sb3 import Navigate2D
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from models.gen_model_nets import GenEncoder
 import stable_baselines3 as sb3
-# import copy
 import imageio
 import datetime
-
+import cv2
 from tqdm import tqdm
-
-import pdb  # only used for debugging
+from moviepy import ImageSequenceClip
 
 
 def make_env(env_kwargs=dict(num_obstacles=0, grid_size=10, static_goal=True, obstacle_diameter=2)):
@@ -90,6 +85,10 @@ def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig):
+    run_rl(cfg)
+
+
+def run_rl(cfg: DictConfig):
     if sb3.__version__ < "2.0":
         raise ValueError(
             """Ongoing migration: run the following command to install the new dependencies:
@@ -150,7 +149,7 @@ def main(cfg: DictConfig):
     succ_ = np.zeros(50)
     ep_idx = 0
     obs, _ = envs.reset(seed=cfg.seed)
-    # for global_step in range(cfg.total_timesteps):
+
     for global_step in tqdm(range(cfg.total_timesteps), desc="global_steps", unit="step"):
         # ALGO LOGIC: put action logic here
         epsilon = linear_schedule(cfg.rl.start_epsilon, cfg.rl.end_epsilon, cfg.rl.exploration_fraction * cfg.total_timesteps, global_step)
@@ -159,7 +158,6 @@ def main(cfg: DictConfig):
         else:
             if obs.ndim == 3:
                 obs = np.expand_dims(obs, axis=0)
-            # BUG: previous issue was that it wants obs of shape (1, 3, 7, 7), but it was missing the first dim sometimes
             q_values = q_network(torch.Tensor(obs).to(device))
             actions = torch.argmax(q_values, dim=1).cpu().numpy()
 
@@ -184,23 +182,10 @@ def main(cfg: DictConfig):
         if ("final_observation" in infos) or ("terminal_observation" in infos):
             step_list.append(infos["steps_taken"])
             if (cfg.use_wandb):
-                # 200 episode avg
-                if len(step_list) % 200 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__200": sum(step_list[-200:]) / 200}, step=global_step)
-
-                # 50 episode avg
-                if len(step_list) % 50 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__50": sum(step_list[-50:]) / 50}, step=global_step)
-
-                # 25 episode avg
-                if len(step_list) % 25 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__25": sum(step_list[-25:]) / 25}, step=global_step)
-
-                # 10 episode avg
-                if len(step_list) % 10 == 0:
-                    wandb.log({"reward_metrics/avg_steps_to_goal__10": sum(step_list[-10:]) / 10}, step=global_step)
-
                 wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
+                wandb.log({"reward_metrics/cumulative_reward": infos["cumulative_reward"]}, step=global_step)
+                wandb.log({"reward_metrics/optimal_path_len": infos["optimal_path_length"]}, step=global_step)
+
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -221,13 +206,8 @@ def main(cfg: DictConfig):
                     td_target = data.rewards.flatten() + cfg.rl.gamma * target_max * (1 - data.dones.flatten())
                 old_val = q_network(data.observations).gather(1, data.actions).squeeze()
                 loss = F.mse_loss(td_target, old_val)
-                # TODO: LOGGING FOR REWARD
-                # The idea is to log the success rate (whether or not it reaches
-                # the goal) as well as the average steps taken to reach the goal
 
                 if global_step % 100 == 0:
-                    # if not cfg.use_wandb:
-                    #     print("SPS:", int(global_step / (time.time() - start_time)), "Global Step:", global_step, "Loss:", loss.item())
                     if cfg.use_wandb:
                         wandb.log({"losses/td_loss": loss}, step=global_step)
                         wandb.log({"losses/q_values": old_val.mean().item()}, step=global_step)
@@ -245,8 +225,40 @@ def main(cfg: DictConfig):
                         cfg.rl.tau * q_network_param.data + (1.0 - cfg.rl.tau) * target_network_param.data
                     )
 
+        if (global_step % cfg.eval_freq == 0) or (global_step == cfg.total_timesteps - 1):
+            q_network.eval()
+            rewards = []
+            successes = []
+            optimal_path_lengths = []
+            my_path_lengths = []
+
+            for _ in range(10):
+                obs, _ = eval_env.reset()
+                terminated, truncated = False, False
+                while not (terminated or truncated):
+                    q_values = q_network(torch.Tensor(obs).unsqueeze(0).to(device))
+                    action = torch.argmax(q_values, dim=1).cpu().numpy().squeeze()
+                    obs, reward, terminated, truncated, info = eval_env.step(action)
+
+                rewards.append(info["cumulative_reward"])
+                successes.append(info["success"])
+                optimal_path_lengths.append(info["optimal_path_length"])
+                my_path_lengths.append(info["steps_taken"])
+
+            diff_path_lengths = np.array(my_path_lengths) - np.array(optimal_path_lengths)
+            path_length_ratio = np.array(optimal_path_lengths) / np.array(my_path_lengths)
+
+            if cfg.use_wandb:
+                wandb.log({"evals/avg_cumulative_reward": np.mean(rewards)}, step=global_step)
+                wandb.log({"evals/avg_success_rate": np.mean(successes)}, step=global_step)
+                wandb.log({"evals/avg_path_length_diff": np.mean(diff_path_lengths)}, step=global_step)
+                wandb.log({"evals/avg_path_length_ratio": np.mean(path_length_ratio)}, step=global_step)
+
+            q_network.train()
+
         if (global_step % cfg.render_freq == 0) or (global_step == cfg.total_timesteps - 1):  # makes sure that it renders at the end too
             frames = []
+            # ASK: Do I need to set this to eval mode?
             for _ in range(5):
                 obs, _ = eval_env.reset()
                 terminated, truncated = False, False
@@ -257,12 +269,18 @@ def main(cfg: DictConfig):
                     frames.append(obs)
             frames = np.array(frames).transpose(0, 2, 3, 1)
             if cfg.use_wandb:
-                from moviepy import ImageSequenceClip
+                scale_factor = 50
+                upscaled_frames = []
+                for frame in frames:
+                    new_width = frame.shape[1] * scale_factor
+                    new_height = frame.shape[0] * scale_factor
+                    upscaled_frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
+                    upscaled_frames.append(upscaled_frame)
 
-                # Create a clip from the list of frames
-                clip = ImageSequenceClip(list(frames), fps=5)
+
+                clip = ImageSequenceClip(list(upscaled_frames), fps=5)
                 temp_video_path = f"render_{global_step}.mp4"
-                # Write video file with a specific codec (libx264)
+
                 clip.write_videofile(
                     temp_video_path,
                     codec="libx264",
