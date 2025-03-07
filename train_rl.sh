@@ -31,4 +31,5 @@ cd rl
 # python main.py use_wandb=True env.grid_size=45 env.num_obstacles=35 env.max_timesteps=100 total_timesteps=600000 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
 
 
-python main.py use_wandb=True env.grid_size=15 env.num_obstacles=20 env.max_timesteps=100 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=15 env.num_obstacles=20 env.max_timesteps=100 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+python main.py use_wandb=True env.grid_size=15 env.num_obstacles=10 env.max_timesteps=50 exp_name="vanilla_dqn" encoder.latent_encoder_path=""

@@ -180,6 +180,8 @@ def main(cfg: DictConfig):
             if (cfg.use_wandb):
                 wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
                 wandb.log({"reward_metrics/cumulative_reward": infos["cumulative_reward"]}, step=global_step)
+                wandb.log({"reward_metrics/optimal_path_len": infos["optimal_path_length"]}, step=global_step)
+
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -223,6 +225,8 @@ def main(cfg: DictConfig):
             q_network.eval()
             rewards = []
             successes = []
+            optimal_path_lengths = []
+            my_path_lengths = []
 
             for _ in range(10):
                 obs, _ = eval_env.reset()
@@ -234,10 +238,17 @@ def main(cfg: DictConfig):
 
                 rewards.append(info["cumulative_reward"])
                 successes.append(info["success"])
+                optimal_path_lengths.append(info["optimal_path_length"])
+                my_path_lengths.append(info["steps_taken"])
+
+            diff_path_lengths = np.array(my_path_lengths) - np.array(optimal_path_lengths)
+            path_length_ratio = np.array(optimal_path_lengths) / np.array(my_path_lengths)
 
             if cfg.use_wandb:
                 wandb.log({"evals/avg_cumulative_reward": np.mean(rewards)}, step=global_step)
                 wandb.log({"evals/avg_success_rate": np.mean(successes)}, step=global_step)
+                wandb.log({"evals/avg_path_length_diff": np.mean(diff_path_lengths)}, step=global_step)
+                wandb.log({"evals/avg_path_length_ratio": np.mean(path_length_ratio)}, step=global_step)
 
             q_network.train()
 
