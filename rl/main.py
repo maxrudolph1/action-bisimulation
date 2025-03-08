@@ -183,7 +183,7 @@ def run_rl(cfg: DictConfig):
             step_list.append(infos["steps_taken"])
             if (cfg.use_wandb):
                 wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
-                wandb.log({"reward_metrics/cumulative_reward": infos["cumulative_reward"]}, step=global_step)
+                wandb.log({"reward_metrics/episodic_return": infos["episodic_return"]}, step=global_step)
                 wandb.log({"reward_metrics/optimal_path_len": infos["optimal_path_length"]}, step=global_step)
 
 
@@ -240,7 +240,7 @@ def run_rl(cfg: DictConfig):
                     action = torch.argmax(q_values, dim=1).cpu().numpy().squeeze()
                     obs, reward, terminated, truncated, info = eval_env.step(action)
 
-                rewards.append(info["cumulative_reward"])
+                rewards.append(info["episodic_return"])
                 successes.append(info["success"])
                 optimal_path_lengths.append(info["optimal_path_length"])
                 my_path_lengths.append(info["steps_taken"])
@@ -249,7 +249,7 @@ def run_rl(cfg: DictConfig):
             path_length_ratio = np.array(optimal_path_lengths) / np.array(my_path_lengths)
 
             if cfg.use_wandb:
-                wandb.log({"evals/avg_cumulative_reward": np.mean(rewards)}, step=global_step)
+                wandb.log({"evals/avg_episodic_return": np.mean(rewards)}, step=global_step)
                 wandb.log({"evals/avg_success_rate": np.mean(successes)}, step=global_step)
                 wandb.log({"evals/avg_path_length_diff": np.mean(diff_path_lengths)}, step=global_step)
                 wandb.log({"evals/avg_path_length_ratio": np.mean(path_length_ratio)}, step=global_step)

@@ -146,6 +146,7 @@ def main(cfg: DictConfig):
         dataset = None
 
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
+        wandb.finish()
         call_rl(
             name=("dqn_" + log_name),
             grid_size=30,

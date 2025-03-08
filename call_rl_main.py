@@ -14,8 +14,6 @@ def call_rl(
     latent_encoder_path="",
     use_wandb=True,
 ):
-    wandb.finish()
-
     GlobalHydra.instance().clear()
 
     with hydra.initialize(config_path="rl/configs"):
@@ -31,6 +29,7 @@ def call_rl(
 
     print(OmegaConf.to_yaml(cfg))
     run_rl(cfg)
+    wandb.finish()
 
 
 if __name__ == "__main__":
