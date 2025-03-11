@@ -54,11 +54,6 @@ encoder:
   layer_norm: false
   output_dim: 64
   path: null
-  # ms
-  # latent_encoder_path: '/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k2_gamma_85_gamma_0.85_2025-02-20_13-08-37_ts_234420/multi_step.pt'
-
-  # acro
-  # latent_encoder_path: '/home/ekuo/bisim/master-branch-actbisim/results/acro_k2_l1_1e-4_2025-02-21_03-10-28_ts_312640/acro.pt'
 
   # No encoder
   latent_encoder_path: ''

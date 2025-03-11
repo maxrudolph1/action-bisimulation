@@ -32,4 +32,41 @@ cd rl
 
 
 # python main.py use_wandb=True env.grid_size=15 env.num_obstacles=20 env.max_timesteps=100 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
-python main.py use_wandb=True env.grid_size=15 env.num_obstacles=10 env.max_timesteps=50 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+# python main.py use_wandb=True env.grid_size=15 env.num_obstacles=10 env.max_timesteps=50 exp_name="vanilla_dqn" encoder.latent_encoder_path=""
+
+
+
+# VANILLA
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="vanilla_dqn" seed=3 encoder.latent_encoder_path=""
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="vanilla_dqn" seed=5 encoder.latent_encoder_path=""
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="vanilla_dqn" seed=7 encoder.latent_encoder_path=""
+
+# ACRO K=1
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k1_dqn" seed=3 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k1_l1_0.0001_grd_30_obstcls_100_smpls_1250000_2025-03-07_05-50-23_ts_68390/acro.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k1_dqn" seed=5 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k1_l1_0.0001_grd_30_obstcls_100_smpls_1250000_2025-03-07_05-50-23_ts_68390/acro.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k1_dqn" seed=7 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k1_l1_0.0001_grd_30_obstcls_100_smpls_1250000_2025-03-07_05-50-23_ts_68390/acro.pt"
+
+# ACRO K=2
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k2_dqn" seed=3 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k2_l1_0.002_grd_30_obstcls_100_smpls_1250000_2025-03-07_06-42-16_ts_390800/acro.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k2_dqn" seed=5 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k2_l1_0.002_grd_30_obstcls_100_smpls_1250000_2025-03-07_06-42-16_ts_390800/acro.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k2_dqn" seed=7 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k2_l1_0.002_grd_30_obstcls_100_smpls_1250000_2025-03-07_06-42-16_ts_390800/acro.pt"
+
+# ACRO K=3
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k3_dqn" seed=3 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k3_l1_0.0002_grd_30_obstcls_100_smpls_1250000_2025-03-08_04-55-34_ts_390800/acro.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k3_dqn" seed=5 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k3_l1_0.0002_grd_30_obstcls_100_smpls_1250000_2025-03-08_04-55-34_ts_390800/acro.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="acro_k3_dqn" seed=7 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/acro_sweeps_k3_l1_0.0002_grd_30_obstcls_100_smpls_1250000_2025-03-08_04-55-34_ts_390800/acro.pt"
+
+# MS_ACRO K=1
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k1" seed=3 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k1_l1_0001_swps_gamma_0.9_grd_30_obstcls_100_smpls_1250000_2025-03-08_13-22-36_ts_146550/multi_step.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k1" seed=5 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k1_l1_0001_swps_gamma_0.9_grd_30_obstcls_100_smpls_1250000_2025-03-08_13-22-36_ts_146550/multi_step.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k1" seed=7 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k1_l1_0001_swps_gamma_0.9_grd_30_obstcls_100_smpls_1250000_2025-03-08_13-22-36_ts_146550/multi_step.pt"
+
+# MS_ACRO K=2
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k2" seed=3 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k2_l1_002_swps_gamma_0.8_grd_30_obstcls_100_smpls_1250000_2025-03-09_05-35-07_ts_146550/multi_step.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k2" seed=5 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k2_l1_002_swps_gamma_0.8_grd_30_obstcls_100_smpls_1250000_2025-03-09_05-35-07_ts_146550/multi_step.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k2" seed=7 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k2_l1_002_swps_gamma_0.8_grd_30_obstcls_100_smpls_1250000_2025-03-09_05-35-07_ts_146550/multi_step.pt"
+
+# MS_ACRO K=3
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k3" seed=3 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k3_l1_0002_swps_gamma_0.85_grd_30_obstcls_100_smpls_1250000_2025-03-09_11-37-06_ts_146550/multi_step.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k3" seed=5 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k3_l1_0002_swps_gamma_0.85_grd_30_obstcls_100_smpls_1250000_2025-03-09_11-37-06_ts_146550/multi_step.pt"
+python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k3" seed=7 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k3_l1_0002_swps_gamma_0.85_grd_30_obstcls_100_smpls_1250000_2025-03-09_11-37-06_ts_146550/multi_step.pt"
