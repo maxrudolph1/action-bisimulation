@@ -151,7 +151,7 @@ def run_rl(cfg: DictConfig):
     obs, _ = envs.reset(seed=cfg.seed)
 
     for global_step in tqdm(range(cfg.total_timesteps), desc="global_steps", unit="step"):
-        print(global_step)
+        # print(global_step)
         # ALGO LOGIC: put action logic here
         epsilon = linear_schedule(cfg.rl.start_epsilon, cfg.rl.end_epsilon, cfg.rl.exploration_fraction * cfg.total_timesteps, global_step)
         if random.random() < epsilon:

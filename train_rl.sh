@@ -70,3 +70,7 @@ python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_tim
 # python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k3" seed=3 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k3_l1_0002_swps_gamma_0.85_grd_30_obstcls_100_smpls_1250000_2025-03-09_11-37-06_ts_146550/multi_step.pt"
 # python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k3" seed=5 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k3_l1_0002_swps_gamma_0.85_grd_30_obstcls_100_smpls_1250000_2025-03-09_11-37-06_ts_146550/multi_step.pt"
 # python main.py use_wandb=True env.grid_size=30 env.num_obstacles=100 env.max_timesteps=100 exp_name="ms_acro_k3" seed=7 encoder.latent_encoder_path="/home/ekuo/bisim/master-branch-actbisim/results/ms_acro_k3_l1_0002_swps_gamma_0.85_grd_30_obstcls_100_smpls_1250000_2025-03-09_11-37-06_ts_146550/multi_step.pt"
+
+
+
+# python main.py use_wandb=True env.grid_size=30 env.num_obstacles= env.max_timesteps=150 exp_name="DEBUG_DQN" seed=3 encoder.latent_encoder_path=""
