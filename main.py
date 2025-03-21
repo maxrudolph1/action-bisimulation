@@ -106,8 +106,8 @@ def main(cfg: DictConfig):
     if cfg.wandb:
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
         # name = f"{cfg.name}_{cur_date_time}"
-        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_30_obstcls_100_smpls_1250000_{cur_date_time}"
-        name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_30_obstcls_100_smpls_1250000_{cur_date_time}"
+        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",
@@ -151,8 +151,8 @@ def main(cfg: DictConfig):
         wandb.finish()
         call_rl(
             name=("dqn_" + log_name),
-            grid_size=30,
-            num_obstacles=100,
+            grid_size=15,
+            num_obstacles=20,
             latent_encoder_path=save_paths[cfg.eval_encoder],
         )
 
