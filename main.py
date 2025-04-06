@@ -106,12 +106,13 @@ def main(cfg: DictConfig):
     if cfg.wandb:
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
         # name = f"{cfg.name}_{cur_date_time}"
+        name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
-        name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",
-            group="ms_acro_grd_30_obstcls_100",
+            # group="ms_acro_grd_30_obstcls_100",
             name=name,
             config=OmegaConf.to_container(cfg)
         )

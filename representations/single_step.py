@@ -1,14 +1,16 @@
-from copy import deepcopy
+# from copy import deepcopy
 
 import numpy as np
 import torch.nn
-from matplotlib import cm
+# from matplotlib import cm
 
 from models import gen_model_nets
 import torch.nn.functional as F
 import torch
 
 from . import utils
+
+import pdb
 
 
 class SingleStep(torch.nn.Module):
@@ -32,18 +34,15 @@ class SingleStep(torch.nn.Module):
         self.dynamic_l1_penalty = cfg.algos.single_step.dynamic_l1_penalty
         self.train_stop_epochs = cfg.algos.single_step.train_stop_epochs
 
-
         self.optimizer = torch.optim.Adam(
-            list(self.encoder.parameters())
-            + list(self.forward_model.parameters())
-            + list(self.inverse_model.parameters()),
+            list(self.encoder.parameters()) + list(self.forward_model.parameters()) + list(self.inverse_model.parameters()),
             lr=self.learning_rate,
-            weight_decay=self.weight_decay,
+            weight_decay=self.weight_decay
         )
 
     def share_dependant_models(self, models):
         pass
-    
+
     def train_step(self, batch, epoch, train_step):
         if epoch >= self.train_stop_epochs:
             return {}
@@ -60,12 +59,13 @@ class SingleStep(torch.nn.Module):
             )
         else:
             forward_model_loss = 0
-            
+
         if self.l1_penalty > 0:
             l1_loss = (
                 torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean()
                 + torch.linalg.vector_norm(on_encoded, ord=1, dim=1).mean()
             ) / 2
+            pdb.set_trace()
         else:
             l1_loss = torch.zeros(1, device="cuda")
 
@@ -74,11 +74,11 @@ class SingleStep(torch.nn.Module):
             inverse_model_pred,
             act,
         )
-        
-        accuracy =  torch.mean(
-                (torch.argmax(inverse_model_pred, dim=1) == act).float()
-            )
-        
+
+        accuracy = torch.mean(
+            (torch.argmax(inverse_model_pred, dim=1) == act).float()
+        )
+
         if self.dynamic_l1_penalty:
             gain = 5
             cur_l1_penalty = self.l1_penalty * np.exp(- gain * (accuracy.detach().item() - 1) ** 2)
@@ -86,13 +86,14 @@ class SingleStep(torch.nn.Module):
             cur_l1_penalty = self.l1_penalty
 
         l1_loss = cur_l1_penalty * l1_loss
+        pdb.set_trace()
         forward_model_loss = self.forward_weight * forward_model_loss
         total_loss = (
             forward_model_loss
             + l1_loss
             + inverse_model_loss
         )
-        
+
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
@@ -108,7 +109,7 @@ class SingleStep(torch.nn.Module):
         }
         self.last_ret = ret
         return ret
-    
+
     def save(self, path):
         torch.save(
             {
