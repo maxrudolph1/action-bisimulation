@@ -7,9 +7,19 @@ python collect_nav2d_data.py --grid-size 15 --num-obstacles 20 --obstacle-size 1
 
 
 
-
+# second, train infonce encoder
 
 python main.py algos='[infonce]'  wandb=True train_evaluators=False eval_encoder='infonce'
+
+# attempt to increase temperature and lower learning rate
+python main.py algos='[infonce]' algos.infonce.temperature=0.3 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
+
+# attempt run to add projector
+python main.py algos='[infonce]' algos.infonce.temperature=0.3 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
+
+
+
+# ------
 
 # python main.py algos='[infonce]' n_epochs=14 algos.acro.l1_penalty=0.002  algos.acro.dynamic_l1_penalty=False algos.acro.k_steps=1 wandb=True train_evaluators=False eval_encoder='acro'
 python main.py algos='[multi_step]' name='ms_infonce' n_epochs=20 wandb=True train_evaluators=False algos.multi_step.base_case_path='/data/rhearai/action-bisimulation/results/infonce_2025-04-11_09-08-01_ts_19540/infonce.pt'

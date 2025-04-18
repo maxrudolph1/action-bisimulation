@@ -20,8 +20,15 @@ class InfoNCE(nn.Module):
 
         self.temperature = cfg.algos.infonce.temperature  #TODO: check this..ig follows paper code for now set at .1 ? basically a hyperparam to stabilize logits?
 
+        proj_dim = cfg.algos.infonce.proj_dim  #128 for now
+        self.projector = nn.Sequential(
+            nn.Linear(self.embed_dim, proj_dim),
+            nn.ReLU(),
+            nn.Linear(proj_dim, proj_dim)
+        ).cuda()
+
         self.optimizer = torch.optim.Adam(
-            self.encoder.parameters(),
+            list(self.encoder.parameters()) + list(self.projector.parameters()),
             lr=self.learning_rate,
             weight_decay=self.weight_decay
         )
@@ -43,13 +50,26 @@ class InfoNCE(nn.Module):
         # get obs/obs_next from batch, encode and normalize
         obs = torch.as_tensor(batch["obs"], device="cuda")
         obs_next = torch.as_tensor(batch["obs_next"], device="cuda")        
-        enc_obs      = self.encoder(obs)        
+        
+    
+        enc_obs = self.encoder(obs)
         enc_obs_next = self.encoder(obs_next)
-        norm_enc_obs = F.normalize(enc_obs, p=2, dim=1)
-        norm_enc_obs_next = F.normalize(enc_obs_next, p=2, dim=1)
+    
+        proj_obs = self.projector(enc_obs)
+        proj_obs_next = self.projector(enc_obs_next)
+
+        norm_proj_obs = F.normalize(proj_obs, p=2, dim=1)
+        norm_proj_obs_next = F.normalize(proj_obs_next, p=2, dim=1)
+
+
+
+        # norm_enc_obs = F.normalize(enc_obs, p=2, dim=1)
+        # norm_enc_obs_next = F.normalize(enc_obs_next, p=2, dim=1)
 
         # perform the actual infonce loss
-        loss = self.infonce_loss(norm_enc_obs, norm_enc_obs_next)
+        # loss = self.infonce_loss(norm_enc_obs, norm_enc_obs_next)
+        loss = self.infonce_loss(norm_proj_obs, norm_proj_obs_next)
+
 
         # backprop
         self.optimizer.zero_grad()
@@ -58,20 +78,22 @@ class InfoNCE(nn.Module):
 
         # diagnostics
         with torch.no_grad():
-            sim_matrix = norm_enc_obs @ norm_enc_obs_next.T
+            sim_matrix = norm_proj_obs @ norm_proj_obs_next.T
             diag_sim = sim_matrix.diag().mean().item()
             offdiag_sim = ((sim_matrix.sum() - sim_matrix.diag().sum()) / (sim_matrix.size(0)**2 - sim_matrix.size(0))).item()
-            std_embedding = enc_obs.std().item()
-            norm_after = norm_enc_obs.norm(p=2, dim=1).mean().item()  # should always be ~1.0
-
+            
         ret = {
             "infonce_loss": loss.item(),
-            "mean_embedding_norm": enc_obs.norm(p=2, dim=1).mean().item(),  # raw norm
-            "embedding_std": std_embedding,
-            "normalized_embedding_norm": norm_after,
+            "encoder_mean_norm": enc_obs.norm(p=2, dim=1).mean().item(),
+            "encoder_std": enc_obs.std().item(),
+            "projected_mean_norm": proj_obs.norm(p=2, dim=1).mean().item(),
+            "projected_std": proj_obs.std().item(),
+            "normalized_proj_norm": norm_proj_obs.norm(p=2, dim=1).mean().item(),
             "diag_cosine_sim": diag_sim,
             "offdiag_cosine_sim": offdiag_sim
         }
+
+
         self.last_ret = ret
         return ret
 
