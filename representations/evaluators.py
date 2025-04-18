@@ -96,16 +96,39 @@ class Evaluators():
         obs[0] = np.where(obs[0] == -1, 0, obs[0])
 
         print('-'*80)
-        for row in layer:
+        for row in obs[0]:
             print(" ".join(str(int(v)) for v in row))
         print('-'*80)
 
-    def eval_imgs(self, samples,):
-        pdb.set_trace()
+    def eval_imgs_single(self, samples,):
+        # pdb.set_trace()
         obs = samples["obs"][0]  # gets a random observation
         obs[1, :, :] = -1
         obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
         heatmap = wandb.Image(np.swapaxes(perturb_heatmap(obs, self.model.encoder)[1], 0, 2))
+
+        obs = torch.tensor(samples["obs"][0])
+        obs_recon = self.decoder(self.model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
+        disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
+        reconstruction = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0, 2), disp_obs], axis=1))
+        return {"reconstruction": reconstruction, "heatmap": heatmap}
+
+    def eval_imgs(self, samples):
+        raw_obs = samples["obs"][:10]
+
+        heatmaps = []
+        for obs in raw_obs:
+            obs = obs.copy()
+            obs[1, :, :] = -1
+            obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
+            heatmap = perturb_heatmap(obs, self.model.encoder)[1]
+            if isinstance(heatmap, torch.Tensor):
+                heatmap = heatmap.detach().cpu().numpy()
+            heatmaps.append(heatmap)
+
+        avg_hm = np.mean(np.stack(heatmaps, axis=0), axis=0)
+        avg_hm_img = np.swapaxes(avg_hm, 0, 2)
+        heatmap = wandb.Image(avg_hm_img)
 
         obs = torch.tensor(samples["obs"][0])
         obs_recon = self.decoder(self.model.encoder(obs[None].cuda())).squeeze().detach().cpu().numpy()
