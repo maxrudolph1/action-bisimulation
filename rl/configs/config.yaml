@@ -8,8 +8,8 @@ freeze_encoder: false
 
 # eval arguments
 logger: "wandb" 
-wandb_project_name: "nav2d"
-wandb_entity: "evan-kuo-edu"
+wandb_project_name: "infonce_test"
+wandb_entity: "actbisim"
 capture_video: false
 save_buffer_name: null
 save_model: False
