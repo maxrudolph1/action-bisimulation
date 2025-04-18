@@ -1,0 +1,1 @@
+python main.py algos='[single_step]' name='ss_l1_1_0_testing' n_epochs=14 wandb=True algos.single_step.l1_penalty=1.00 algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 train_evaluators=False eval_encoder=''

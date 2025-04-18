@@ -1,0 +1,6 @@
+# python main.py algos='[single_step]' name='ss_l1_0001_testing' n_epochs=14 wandb=True algos.single_step.l1_penalty=0.0001 algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 train_evaluators=False eval_encoder=''
+# python main.py algos='[single_step]' name='ss_l1_01_testing' n_epochs=14 wandb=True algos.single_step.l1_penalty=0.01 algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 train_evaluators=False eval_encoder=''
+
+# python main.py algos='[single_step]' name='ss_l1_00_testing' n_epochs=14 wandb=True algos.single_step.l1_penalty=0.00 algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 train_evaluators=False eval_encoder=''
+# python main.py algos='[single_step]' name='ss_l1_1_0_testing' n_epochs=14 wandb=True algos.single_step.l1_penalty=1.00 algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 train_evaluators=False eval_encoder=''
+python main.py algos='[single_step]' name='ss_l1_5_0_testing' n_epochs=14 wandb=True algos.single_step.l1_penalty=5.00 algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 train_evaluators=False eval_encoder=''

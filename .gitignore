@@ -13,3 +13,4 @@ videos/
 **/*.gif
 
 actbisim.egg-info/
+.vscode/
