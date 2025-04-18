@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from . import utils
 
-class InfoNCEEncoder(nn.Module):
+class InfoNCE(nn.Module):
     def __init__(self, obs_shape, act_shape, cfg):
         super().__init__()
         encoder_cfg = cfg.algos.infonce.encoder
@@ -56,9 +56,21 @@ class InfoNCEEncoder(nn.Module):
         loss.backward()
         self.optimizer.step()
 
+        # diagnostics
+        with torch.no_grad():
+            sim_matrix = norm_enc_obs @ norm_enc_obs_next.T
+            diag_sim = sim_matrix.diag().mean().item()
+            offdiag_sim = ((sim_matrix.sum() - sim_matrix.diag().sum()) / (sim_matrix.size(0)**2 - sim_matrix.size(0))).item()
+            std_embedding = enc_obs.std().item()
+            norm_after = norm_enc_obs.norm(p=2, dim=1).mean().item()  # should always be ~1.0
+
         ret = {
             "infonce_loss": loss.item(),
-            "mean_embedding_norm": enc_obs.norm(p=2, dim=1).mean().item()
+            "mean_embedding_norm": enc_obs.norm(p=2, dim=1).mean().item(),  # raw norm
+            "embedding_std": std_embedding,
+            "normalized_embedding_norm": norm_after,
+            "diag_cosine_sim": diag_sim,
+            "offdiag_cosine_sim": offdiag_sim
         }
         self.last_ret = ret
         return ret

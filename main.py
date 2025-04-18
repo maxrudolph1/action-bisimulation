@@ -108,7 +108,7 @@ def main(cfg: DictConfig):
     if cfg.wandb:
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
         # name = f"{cfg.name}_{cur_date_time}"
-        name = f"infonce_{cur_date_time}"
+        name = f"infonce_new_{cur_date_time}"
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_30_obstcls_100_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,

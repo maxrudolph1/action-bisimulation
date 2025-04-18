@@ -1,3 +1,14 @@
+
+# first, need to run the data collection: 
+python collect_nav2d_data.py --grid-size 15 --num-obstacles 20 --obstacle-size 1 --k-step-action 4 --epsilon 0.5 --seed 11 --size 1000000 --save-path ./data --name paper_default
+
+
+
+
+
+
+
+
 python main.py algos='[infonce]'  wandb=True train_evaluators=False eval_encoder='infonce'
 
 # python main.py algos='[infonce]' n_epochs=14 algos.acro.l1_penalty=0.002  algos.acro.dynamic_l1_penalty=False algos.acro.k_steps=1 wandb=True train_evaluators=False eval_encoder='acro'
