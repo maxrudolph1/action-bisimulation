@@ -195,6 +195,15 @@ def train(
 
             if cfg.wandb:
                 log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
+            else: # FIXME: remove this block because its just for debugging
+                if train_step % cfg.img_log_freq == 0:
+                    for model_name, evaluator in evaluators.items():
+                        imgs = evaluator.eval_imgs(samples)
+                        wandb_imgs_log = {
+                            f"{model_name}/{key}": img
+                            for key, img in imgs.items()
+                        }
+
 
             train_step += 1
 

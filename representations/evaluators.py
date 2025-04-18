@@ -12,6 +12,8 @@ import wandb
 from environments.nav2d.utils import perturb_heatmap
 # from . import utils
 
+import pdb
+
 
 class Evaluators():
     def __init__(
@@ -88,8 +90,19 @@ class Evaluators():
 
         return evaluator_losses
 
+    def ascii_obs(self, obs):
+        obs = obs.copy()
+
+        obs[0] = np.where(obs[0] == -1, 0, obs[0])
+
+        print('-'*80)
+        for row in layer:
+            print(" ".join(str(int(v)) for v in row))
+        print('-'*80)
+
     def eval_imgs(self, samples,):
-        obs = samples["obs"][0]
+        pdb.set_trace()
+        obs = samples["obs"][0]  # gets a random observation
         obs[1, :, :] = -1
         obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
         heatmap = wandb.Image(np.swapaxes(perturb_heatmap(obs, self.model.encoder)[1], 0, 2))

@@ -10,7 +10,7 @@ import torch
 
 from . import utils
 
-import pdb
+# import pdb
 
 
 class SingleStep(torch.nn.Module):
@@ -65,7 +65,7 @@ class SingleStep(torch.nn.Module):
                 torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean()
                 + torch.linalg.vector_norm(on_encoded, ord=1, dim=1).mean()
             ) / 2
-            pdb.set_trace()
+            # pdb.set_trace()
         else:
             l1_loss = torch.zeros(1, device="cuda")
 
@@ -85,8 +85,11 @@ class SingleStep(torch.nn.Module):
         else:
             cur_l1_penalty = self.l1_penalty
 
+        # gives us the mean of the encoded states
+        pre_penalized_l1_loss = l1_loss.detach().item()  # NOTE: mostly for debugging
+
         l1_loss = cur_l1_penalty * l1_loss
-        pdb.set_trace()
+        # pdb.set_trace()
         forward_model_loss = self.forward_weight * forward_model_loss
         total_loss = (
             forward_model_loss
@@ -97,15 +100,19 @@ class SingleStep(torch.nn.Module):
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
-        mean_element_magnitude = torch.abs(o_encoded).float().mean().detach().item()
+        # mean_element_magnitude = torch.abs(o_encoded).float().mean().detach().item()
         ret = {
             "inverse_loss": inverse_model_loss.detach().item(),
             "l1_loss": l1_loss.detach().item(),
+            "mean_encoded_magnitude": pre_penalized_l1_loss,  # purely for debugging and logging
+            # for pre-penalized loss, expect lower l1 values to result in higher pre-penalty
+            # aka: 0.01 should have a LOWER pre-penalty
+            # aka: 0.0001 should have a HIGHER pre-penalty
             "loss": total_loss.detach().item(),
             "accuracy": accuracy.detach().item(),
             "cur_l1_penalty": cur_l1_penalty,
-            "mean_element_magnitude": mean_element_magnitude,
-            "mean_representation_magnitude": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
+            # "mean_element_magnitude": mean_element_magnitude,
+            # "mean_representation_magnitude": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
         }
         self.last_ret = ret
         return ret
