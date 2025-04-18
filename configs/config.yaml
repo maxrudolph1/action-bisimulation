@@ -30,5 +30,6 @@ img_log_freq: 1000
 train_evaluators: True
 eval_encoder: ''
 defaults:
-  - algos: infonce
+  # - algos: infonce
+  - algos: multi_step
   - algos/evaluators@evaluators

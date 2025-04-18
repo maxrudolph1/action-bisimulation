@@ -15,6 +15,17 @@ warm_start_ms_with_ss: False
 multi_step_forward_loss: l1
 reset_forward_model_every: 3000
 
+base_encoder_cfg:
+  type: cnn
+  input_channels: 3 
+  hidden_layers: [64, 64, 64, 96, 96, 128] #based on cnn in config?
+  num_pooling: 2
+  acti: relu
+  use_layer_norm: False
+  output_dim: 64
+
+
+
 defaults:
   - networks/cnn@encoder
   - networks/mlp@forward

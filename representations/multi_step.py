@@ -27,7 +27,11 @@ class MultiStep(torch.nn.Module):
         self.tau = cfg.algos.multi_step.tau
 
         if len(cfg.algos.multi_step.get("base_case_path")) > 0:
-            self.bc_encoder = torch.load(cfg.algos.multi_step.get("base_case_path"))['encoder']
+            encoder_cfg = cfg.algos.multi_step.base_encoder_cfg
+            self.bc_encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+            ckpt = torch.load(cfg.algos.multi_step.base_case_path)
+            self.bc_encoder.load_state_dict(ckpt['encoder'])
+            self.bc_encoder.eval()
         else:
             self.bc_encoder = None
 
