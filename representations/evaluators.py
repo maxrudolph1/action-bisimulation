@@ -91,16 +91,19 @@ class Evaluators():
         return evaluator_losses
 
     def ascii_obs(self, obs):
+        """
+        Just a debugging function that prints the obstacle layer of the obs
+        """
         obs = obs.copy()
 
         obs[0] = np.where(obs[0] == -1, 0, obs[0])
 
-        print('-'*80)
+        print('-' * 80)
         for row in obs[0]:
             print(" ".join(str(int(v)) for v in row))
-        print('-'*80)
+        print('-' * 80)
 
-    def eval_imgs_single(self, samples,):
+    def eval_imgs_single(self, samples,):  # old code. doesn't average, probably don't need anymore
         # pdb.set_trace()
         obs = samples["obs"][0]  # gets a random observation
         obs[1, :, :] = -1

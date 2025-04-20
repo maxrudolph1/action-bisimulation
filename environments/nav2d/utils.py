@@ -68,5 +68,4 @@ def perturb_heatmap(obs, encoder):
     img[:, :, -1] = [[0], [1], [0]]
     heatmap[:, :, 0] = [[0], [1], [0]]
 
-
     return img, heatmap
