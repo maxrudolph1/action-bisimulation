@@ -9,12 +9,13 @@ freeze_encoder: false
 # eval arguments
 logger: "wandb" 
 wandb_project_name: "infonce_test"
+# wandb_project_name: "ac"
 wandb_entity: "actbisim"
 capture_video: false
 save_buffer_name: null
 save_model: False
 
-use_wandb: False
+use_wandb: True
 render_freq: 25000
 eval_freq: 10000
 # total_timesteps: 500000
@@ -55,5 +56,5 @@ encoder:
   output_dim: 64
   path: null
 
-  # No encoder
-  latent_encoder_path: ''
+  # No encoder : empty string
+  latent_encoder_path: '/data/rhearai/action-bisimulation/results/ms_infonce_2025-04-18_13-15-56_on_base/data/rhearai/action-bisimulation/results/infonce_new_with_proj2025-04-18_11-46-18/infonce.pt_ts_78140/multi_step.pt'

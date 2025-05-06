@@ -97,7 +97,7 @@ def run_rl(cfg: DictConfig):
     assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
 
     cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_name = f"{cfg.exp_name}__grid_{cfg.env.grid_size}_obstacles_{cfg.env.num_obstacles}_seed_{cfg.seed}_datetime_{cur_date_time}"
+    run_name = f"rl_{cfg.exp_name}__grid_{cfg.env.grid_size}_obstacles_{cfg.env.num_obstacles}_seed_{cfg.seed}_datetime_{cur_date_time}"
     if cfg.use_wandb:
         import wandb
 
