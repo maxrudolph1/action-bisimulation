@@ -107,9 +107,18 @@ def main(cfg: DictConfig):
     wandb_name = None
     if cfg.wandb:
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        name = f"{cfg.name}_{cur_date_time}_on_base{cfg.algos.multi_step.base_case_path}"
-        # name = f"infonce_new_with_proj{cur_date_time}, lr_{cfg.algos.infonce.learning_rate}, wd_{cfg.algos.infonce.weight_decay}, temp_{cfg.algos.infonce.temperature}, proj_dim_{cfg.algos.infonce.proj_dim}"
+        # name = f"{cfg.name}_{cur_date_time}_on_base{cfg.algos.multi_step.base_case_path}"
         
+        
+        # name = f"infonce_new_with_proj{cur_date_time}-temp_{cfg.algos.infonce.temperature}-lr_{cfg.algos.infonce.learning_rate}-wd_{cfg.algos.infonce.weight_decay}-proj_dim_{cfg.algos.infonce.proj_dim}"
+        
+        base_path = cfg.algos.multi_step.get("base_case_path", "")
+        # base_filename = os.path.basename(base_path) if base_path else "no_base"
+        # name = f"{cfg.name}_{cur_date_time}_on_{base_filename}"
+        base_dir = os.path.basename(os.path.dirname(base_path)) if base_path else "no_base"
+        name = f"{cfg.name}_{cur_date_time}_on_{base_dir}"
+
+
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_30_obstcls_100_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
@@ -154,7 +163,7 @@ def main(cfg: DictConfig):
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
         wandb.finish()
         call_rl(
-            name=("dqn_" + log_name),
+            name=("infonce_temp_sweeps_dqn_" + log_name),
             grid_size=15, 
             num_obstacles=20,
             latent_encoder_path=save_paths[cfg.eval_encoder],

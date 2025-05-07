@@ -1,0 +1,6 @@
+python main.py algos='[infonce]' algos.infonce.temperature=0.01 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
+python main.py algos='[infonce]' algos.infonce.temperature=0.02 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
+python main.py algos='[infonce]' algos.infonce.temperature=0.05 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
+python main.py algos='[infonce]' algos.infonce.temperature=0.09 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
+python main.py algos='[infonce]' algos.infonce.temperature=0.15 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
+python main.py algos='[infonce]' algos.infonce.temperature=0.2 algos.infonce.learning_rate=1e-4 wandb=True train_evaluators=False eval_encoder='infonce'
