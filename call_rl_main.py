@@ -13,6 +13,9 @@ def call_rl(
     total_timesteps=1000000,
     latent_encoder_path="",
     use_wandb=True,
+    seed=1,
+    l1_penalty=-1,
+    gamma=-1,
 ):
     GlobalHydra.instance().clear()
 
@@ -25,6 +28,9 @@ def call_rl(
             f"env.num_obstacles={num_obstacles}",
             f"env.max_timesteps={max_timesteps}",
             f"encoder.latent_encoder_path='{latent_encoder_path}'",
+            f"seed={seed}",
+            f"encoder_training_args.l1_penalty={l1_penalty}",
+            f"encoder_training_args.gamma={gamma}",
         ])
 
     print(OmegaConf.to_yaml(cfg))

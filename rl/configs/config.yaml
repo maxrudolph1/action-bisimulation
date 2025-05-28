@@ -5,6 +5,9 @@ logdir: "log"
 pretrained_encoder_path: null
 exp_name: "dqn"
 freeze_encoder: false
+encoder_training_args:
+  l1_penalty: -1
+  gamma: -1
 
 # eval arguments
 logger: "wandb" 

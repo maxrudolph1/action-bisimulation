@@ -150,13 +150,40 @@ def main(cfg: DictConfig):
 
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
         wandb.finish()
-        call_rl(
-            name=("dqn_" + log_name),
-            grid_size=15,
-            num_obstacles=20,
-            latent_encoder_path=save_paths[cfg.eval_encoder],
-        )
+        if (cfg.eval_encoder == "single_step") or (cfg.eval_encoder == "acro"):
+            penalty = cfg.algos.acro.l1_penalty if (cfg.eval_encoder == "acro") else cfg.algos.single_step.l1_penalty
 
+            # base case with l1_penalty
+            for seed in list((1, 3)):
+                call_rl(
+                    name=("dqn_" + log_name),
+                    grid_size=15,
+                    num_obstacles=20,
+                    seed=seed,
+                    latent_encoder_path=save_paths[cfg.eval_encoder],
+                    l1_penalty=penalty,
+                )
+        elif (cfg.eval_encoder == "multi_step"):
+            # multi-step with gamma
+            for seed in list((1, 3)):
+                call_rl(
+                    name=("dqn_" + log_name),
+                    grid_size=15,
+                    num_obstacles=20,
+                    seed=seed,
+                    latent_encoder_path=save_paths[cfg.eval_encoder],
+                    gamma=cfg.algos.multi_step.gamma,
+                )
+        else:
+            # other?
+            for seed in list((1, 3)):
+                call_rl(
+                    name=("dqn_" + log_name),
+                    grid_size=15,
+                    num_obstacles=20,
+                    seed=seed,
+                    latent_encoder_path=save_paths[cfg.eval_encoder],
+                )
 
 
 def train(
@@ -203,7 +230,6 @@ def train(
                             f"{model_name}/{key}": img
                             for key, img in imgs.items()
                         }
-
 
             train_step += 1
 
