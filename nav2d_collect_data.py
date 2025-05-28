@@ -96,7 +96,8 @@ def main():
     parser.add_argument("--obstacle-size", type=int, default=1)
     parser.add_argument("--grid-size", type=int, default=15)  # default
     # parser.add_argument("--grid-size", type=int, default=30)
-    parser.add_argument("--k-step-action", type=int, default=4)  # number of lookahead steps for the "single step" model
+    # parser.add_argument("--k-step-action", type=int, default=4)  # number of lookahead steps for the "single step" model
+    parser.add_argument("--k-step-action", type=int, default=6)
     parser.add_argument("--maze", default=False, action="store_true")
     parser.add_argument("--env-config", default=None)
     parser.add_argument("--env", default="nav2d")
