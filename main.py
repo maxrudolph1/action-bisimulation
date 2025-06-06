@@ -105,8 +105,8 @@ def main(cfg: DictConfig):
     wandb_name = None
     if cfg.wandb:
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        # name = f"{cfg.name}_{cur_date_time}"
-        name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        name = f"{cfg.name}_{cur_date_time}"
+        # name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         wandb.init(
