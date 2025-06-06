@@ -61,7 +61,6 @@ class QNetwork(nn.Module):
         self.obs_shape = obs_shape
 
     def forward(self, x):
-        x = x.float() / 255.0
         latent = self.encoder(x)
         return self.q_value_head(latent)
 
