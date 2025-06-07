@@ -60,6 +60,10 @@ class QNetwork(nn.Module):
         self.obs_shape = obs_shape
 
     def forward(self, x):
+        ## x should be B x C x H x W and takes values in range [0, 255]
+        ## normalize to [-1, 1]
+        x = x / 255.0 * 2.0 - 1.0
+        ## encode   
         latent = self.encoder(x)
         return self.q_value_head(latent)
 
