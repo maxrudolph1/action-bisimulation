@@ -45,11 +45,10 @@ class QNetwork(nn.Module):
 
         latent_path = encoder_cfg.get("latent_encoder_path")
         if (latent_path) and (len(latent_path) > 0):
-            # FIXME: Try both freezing and not freezing the encoder (not sure which one is right now?)
+            # note that this only trained on 1, 3, 15, 15 images
             self.encoder = torch.load(latent_path)['encoder']  # 64 dim latent space
-            # ASK:Help, this is only trained on 1, 3, 15, 15 images
 
-            # freeze the encoder weights
+            # NOTE: freeze the encoder weights
             # for param in self.encoder.parameters():
             #     param.requires_grad = False
         else:
