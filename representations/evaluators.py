@@ -104,7 +104,6 @@ class Evaluators():
         print('-' * 80)
 
     def eval_imgs_single(self, samples,):  # old code. doesn't average, probably don't need anymore
-        # pdb.set_trace()
         obs = samples["obs"][0]  # gets a random observation
         obs[1, :, :] = -1
         obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1

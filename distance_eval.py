@@ -130,7 +130,7 @@ def main(cfg: DictConfig):
         query_cap = f"sub_idx={q}, orig_idx={orig_q}"
         query_img = captioned_image(obs_sub[q], query_cap)
 
-        # caption each neighbor with its sub-sample idx, original idx, and L₁ distance
+        # caption each neighbor with its sub-sample idx, original idx, and L1 distance
         neighbor_imgs = []
         for n in neighbors[: cfg.evals.distance.raw_obs_count]:
             orig_n = idxs[n]

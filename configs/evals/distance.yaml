@@ -2,6 +2,7 @@
 
 # which representations to run
 reprs: ["ss", "ms_ss", "nce", "ms_nce", "acro_k2", "ms_acro_k2", "acro_k3", "ms_acro_k3", "acro_k5", "ms_acro_k5"] # list of keys, must match MODEL_DICT below
+# reprs: ["ss"]
 # checkpoint paths, keyed by repr name
 ckpts:
   ss: "/home/ekuo/bisim/action-bisimulation/results/ss_l1_002_swps_grd_15_obstcls_20_smpls_1250000_2025-05-29_05-55-32_ts_68362/single_step.pt"
@@ -33,3 +34,7 @@ wandb:
   name: ""
   project: "nav2d"
   entity:  "evan-kuo-edu"
+
+perturb_threshold: 4
+perturb_repeats: 3
+split_method: "l1" # options: l1, anything else will generate subsquare
