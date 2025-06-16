@@ -1,0 +1,35 @@
+# @package evals.distance
+
+# which representations to run
+reprs: ["ss", "ms_ss", "nce", "ms_nce", "acro_k2", "ms_acro_k2", "acro_k3", "ms_acro_k3", "acro_k5", "ms_acro_k5"] # list of keys, must match MODEL_DICT below
+# checkpoint paths, keyed by repr name
+ckpts:
+  ss: "/home/ekuo/bisim/action-bisimulation/results/ss_l1_002_swps_grd_15_obstcls_20_smpls_1250000_2025-05-29_05-55-32_ts_68362/single_step.pt"
+  ms_ss: "/home/ekuo/bisim/action-bisimulation/results/ms_ss_l1_002_swps_grd_15_obstcls_20_smpls_1250000_grd_15_obstcls_20_smpls_1250000_2025-06-01_03-26-22_ts_146490/multi_step.pt"
+  nce: "/home/ekuo/bisim/action-bisimulation/results/nce_l1_temp_05_2025-06-14_21-04-18_ts_14649/nce.pt"
+  ms_nce: "/home/ekuo/bisim/action-bisimulation/results/ms_nce_l1_temp_05_swps_gamma_5_2025-06-15_02-35-21_ts_73245/multi_step.pt"
+  acro_k2: "/home/ekuo/bisim/action-bisimulation/results/default_run_name_grd_15_obstcls_20_smpls_1250000_2025-05-29_08-50-33_ts_170905/acro.pt"
+  ms_acro_k2: "/home/ekuo/bisim/action-bisimulation/results/ms_acro_k2_l1_002_swps_grd_15_obstcls_20_smpls_1250000_grd_15_obstcls_20_smpls_1250000_2025-06-01_03-25-00_ts_146490/multi_step.pt"
+  acro_k3: "/home/ekuo/bisim/action-bisimulation/results/default_run_name_grd_15_obstcls_20_smpls_1250000_2025-05-29_04-35-37_ts_170905/acro.pt"
+  ms_acro_k3: "/home/ekuo/bisim/action-bisimulation/results/ms_acro_k3_l1_0005_swps_grd_15_obstcls_20_smpls_1250000_2025-05-31_22-45-35_ts_146490/multi_step.pt"
+  acro_k5: "/home/ekuo/bisim/action-bisimulation/results/default_run_name_grd_15_obstcls_20_smpls_1250000_2025-05-28_23-16-24_ts_170905/acro.pt"
+  ms_acro_k5: "/home/ekuo/bisim/action-bisimulation/results/ms_acro_k5_l1_0001_swps_grd_15_obstcls_20_smpls_1250000_grd_15_obstcls_20_smpls_1250000_2025-06-01_02-49-57_ts_146490/multi_step.pt"
+
+# how many random obs to sample from the first dataset in cfg.datasets
+num_samples:   1000000
+# how many nearest neighbors to log
+num_neighbors:   30
+# how many raw obs (neighbors) to render as images
+raw_obs_count:   30
+seed: 42
+
+datasets: [
+  # '/home/ekuo/bisim/action-bisimulation/datasets/nav2d_dataset_s1_e0.5_size1250000__k_steps_4_num_obstacles_20_grid_size_15.hdf5',
+  '/home/ekuo/bisim/action-bisimulation/datasets/nav2d_dataset_s1_e0.5_size1250000__k_steps_2_num_obstacles_20_grid_size_15.hdf5'
+]
+
+# wandb settings
+wandb:
+  name: ""
+  project: "nav2d"
+  entity:  "evan-kuo-edu"

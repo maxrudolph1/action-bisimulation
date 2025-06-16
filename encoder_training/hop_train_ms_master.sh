@@ -68,13 +68,8 @@
 # python main.py algos='[multi_step]' name='recreate_ms_ss' n_epochs=30 algos.multi_step.gamma=0.99 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/ss_l1_0001_swps_grd_15_obstcls_20_smpls_1250000_2025-05-28_23-03-05_ts_68362/single_step.pt'
 
 
-# larger grid
-python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_5' n_epochs=15 algos.multi_step.gamma=0.5 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
-python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_8' n_epochs=15 algos.multi_step.gamma=0.8 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
-python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_9' n_epochs=15 algos.multi_step.gamma=0.9 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
-python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_99' n_epochs=15 algos.multi_step.gamma=0.99 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
 
-# NCE
+# NCE COSINE
 # /home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt
 
 # /home/ekuo/bisim/action-bisimulation/results/nce_temp_0002_2025-06-14_00-23-46_ts_48830/nce.pt
@@ -85,3 +80,14 @@ python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_99' n_epoc
 # /home/ekuo/bisim/action-bisimulation/results/nce_temp_01_2025-06-14_00-43-06_ts_48830/nce.pt
 # /home/ekuo/bisim/action-bisimulation/results/nce_temp_02_2025-06-14_00-24-14_ts_48830/nce.pt
 # /home/ekuo/bisim/action-bisimulation/results/nce_temp_05_2025-06-14_00-05-00_ts_48830/nce.pt
+
+# python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_5' n_epochs=15 algos.multi_step.gamma=0.5 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
+# python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_8' n_epochs=15 algos.multi_step.gamma=0.8 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
+# python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_9' n_epochs=15 algos.multi_step.gamma=0.9 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
+# python main.py algos='[multi_step]' name='ms_nce_temp_0001_swps_gamma_99' n_epochs=15 algos.multi_step.gamma=0.99 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_temp_0001_2025-06-14_00-42-14_ts_48830/nce.pt'
+
+
+python main.py algos='[multi_step]' name='ms_nce_l1_temp_05_swps_gamma_5' n_epochs=15 algos.multi_step.gamma=0.5 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_l1_temp_05_2025-06-14_21-04-18_ts_14649/nce.pt'
+python main.py algos='[multi_step]' name='ms_nce_l1_temp_05_swps_gamma_8' n_epochs=15 algos.multi_step.gamma=0.8 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_l1_temp_05_2025-06-14_21-04-18_ts_14649/nce.pt'
+python main.py algos='[multi_step]' name='ms_nce_l1_temp_05_swps_gamma_9' n_epochs=15 algos.multi_step.gamma=0.9 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_l1_temp_05_2025-06-14_21-04-18_ts_14649/nce.pt'
+python main.py algos='[multi_step]' name='ms_nce_l1_temp_05_swps_gamma_99' n_epochs=15 algos.multi_step.gamma=0.99 eval_encoder='multi_step' algos.multi_step.reset_forward_model_every=1e7 algos.multi_step.use_states_with_same_action=True wandb=True train_evaluators=False algos.multi_step.base_case_path='/home/ekuo/bisim/action-bisimulation/results/nce_l1_temp_05_2025-06-14_21-04-18_ts_14649/nce.pt'
