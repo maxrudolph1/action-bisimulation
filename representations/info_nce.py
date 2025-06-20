@@ -2,6 +2,9 @@ import torch
 import torch.nn.functional as F
 from models import gen_model_nets
 
+import numpy as np
+import pdb
+
 
 class NCE(torch.nn.Module):
     def __init__(self, obs_shape, act_shape, cfg):
@@ -21,7 +24,8 @@ class NCE(torch.nn.Module):
         self.learning_rate  = cfg.algos.nce.learning_rate
         self.weight_decay   = cfg.algos.nce.weight_decay
 
-        self.method = "l1"  # can be cos or l1
+        self.method = cfg.algos.nce.method
+        self.k_steps = cfg.algos.nce.k_steps
 
         self.optimizer = torch.optim.Adam(
             list(self.encoder.parameters()) + list(self.action_encoder.parameters()),
@@ -51,6 +55,22 @@ class NCE(torch.nn.Module):
     def share_dependant_models(self, models):
         pass
 
+    def ao(self, obs):
+        """
+        Just a debugging function that prints the obstacle layer of the obs
+        """
+        obs = obs.detach().cpu().numpy()
+
+        obs[0] = np.where(obs[0] == -1, 0, obs[0])
+        obs[1] = np.where(obs[1] == -1, 0, obs[1])
+
+        print('-' * 80)
+        for row in obs[0]:
+            print(" ".join(str(int(v)) for v in row))
+        print('-' * 80)
+        for row in obs[1]:
+            print(" ".join(str(int(v)) for v in row))
+
     def loss(self, obs, obs_next, act):
         # 1) get all pairwise similarities
         sims = self.distances(obs, obs_next)   # (batch, A)
@@ -62,9 +82,12 @@ class NCE(torch.nn.Module):
         return F.cross_entropy(logits, act)
         pass
 
-    def train_step(self, batch, epoch, train_step):
+    def train_step(self, batch, epoch, train_step):  # k=1 is next obs.
         obs = torch.as_tensor(batch["obs"], device="cuda")
-        obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
+        if self.k_steps <= 1:
+            obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
+        else:
+            obs_next = torch.as_tensor(batch["kobs"][:, self.k_steps - 1], device="cuda")
         act = torch.as_tensor(batch["action"], dtype=torch.long, device="cuda")
 
         # forward + backward

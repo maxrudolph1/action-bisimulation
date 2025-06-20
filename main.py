@@ -156,8 +156,8 @@ def main(cfg: DictConfig):
         # num_obs = 100
         grid = 15
         num_obs = 20
-
-        seeds = list(range(3))
+        total_timesteps = 600000  # default is 1 mil
+        seeds = list(range(0))
 
         if (cfg.eval_encoder == "single_step") or (cfg.eval_encoder == "acro"):
             penalty = cfg.algos.acro.l1_penalty if (cfg.eval_encoder == "acro") else cfg.algos.single_step.l1_penalty
@@ -171,6 +171,7 @@ def main(cfg: DictConfig):
                     seed=seed,
                     latent_encoder_path=save_paths[cfg.eval_encoder],
                     l1_penalty=penalty,
+                    total_timesteps=total_timesteps,
                 )
         elif (cfg.eval_encoder == "multi_step"):
             # multi-step with gamma
@@ -182,6 +183,7 @@ def main(cfg: DictConfig):
                     seed=seed,
                     latent_encoder_path=save_paths[cfg.eval_encoder],
                     gamma=cfg.algos.multi_step.gamma,
+                    total_timesteps=total_timesteps,
                 )
         else:
             # other?
@@ -192,6 +194,7 @@ def main(cfg: DictConfig):
                     num_obstacles=num_obs,
                     seed=seed,
                     latent_encoder_path=save_paths[cfg.eval_encoder],
+                    total_timesteps=total_timesteps,
                 )
 
 
