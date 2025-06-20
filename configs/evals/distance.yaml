@@ -36,5 +36,4 @@ wandb:
   entity:  "evan-kuo-edu"
 
 perturb_threshold: 4
-perturb_repeats: 3
-split_method: "l1" # options: l1, anything else will generate subsquare
+split_method: "square" # options: l1, anything else will generate subsquare

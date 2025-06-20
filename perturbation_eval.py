@@ -1,6 +1,8 @@
 import random
 import datetime
 
+import json
+
 import h5py
 import numpy as np
 import torch
@@ -105,18 +107,28 @@ def main(cfg: DictConfig):
     encoders = {}
     for name in cfg.evals.distance.reprs:
         ckpt = torch.load(to_absolute_path(cfg.evals.distance.ckpts[name]), map_location="cpu")
-        enc = ckpt["encoder"].cuda().eval()  # unorthodox load
-        encoders[name] = enc
+        encoders[name] = ckpt["encoder"].cuda().eval()
 
-    # ── setup split threshold & repeats ───────────────────
     threshold = cfg.evals.distance.perturb_threshold
-    repeats = cfg.evals.distance.perturb_repeats
+    split_method = cfg.evals.distance.split_method  # "l1" or "square"
 
-    # ── precompute manhattan distances for the grid ────────
+    # ── precompute grid distances ────────
     _, C, H, W = obs_sub_cpu.shape
     ys, xs = np.ogrid[:H, :W]
     cy, cx = H//2, W//2
     dist_map = (np.abs(ys - cy) + np.abs(xs - cx))  # [H, W]
+
+    box_data = {
+        "seed": seed,
+        "perturb_threshold": threshold,
+        "split_method": split_method,
+        "raw_obs": None,
+        "representations": {}
+    }
+
+    q = random.randrange(S)
+    rand_obs = obs_sub_cpu[q].numpy()  # [C, H, W]
+    box_data["raw_obs"] = rand_obs.tolist()
 
     # ── init W&B ──────────────────────────────────────────
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -128,17 +140,15 @@ def main(cfg: DictConfig):
         name=run_name
     )
 
-    # define this once, above the loops
     def remove_outliers_iqr(x, k=1.5):
         q1, q3 = np.percentile(x, [25, 75])
         iqr    = q3 - q1
         lower, upper = q1 - k*iqr, q3 + k*iqr
         return x[(x >= lower) & (x <= upper)]
 
-    q = random.randrange(S)
-    rand_obs = obs_sub_cpu[q].numpy()  # [C, H, W]
-
     for name, encoder in encoders.items():
+        box_data["representations"][name] = []
+
         obs = rand_obs.copy()
         obs[1, :, :] = -1
         obs[1, obs.shape[1] // 2, obs.shape[2] // 2] = 1
@@ -146,7 +156,7 @@ def main(cfg: DictConfig):
         # compute your rendered image + distance map
         img, d2d = compute_distances(obs, encoder)  # img:[3,H,W], d2d:[H,W]
 
-        if cfg.evals.distance.split_method == "l1":
+        if split_method == "l1":
             near = d2d[dist_map <= threshold].ravel()
             far  = d2d[dist_map > threshold].ravel()
         else:
@@ -176,9 +186,14 @@ def main(cfg: DictConfig):
         ax.set_ylabel("Sensitivity of representation")
         plt.tight_layout()
 
+        box_data["representations"][name].append({
+            "near":    near_clean.tolist(),
+            "distant":     far_clean.tolist()
+        })
+
         # ─── log raw rendered obs ─────────────────────────────
         # convert img [3,H,W] → [H,W,3] for wandb
-        img_hwc = img.transpose(1, 2, 0)
+        # img_hwc = img.transpose(1, 2, 0)
 
         # ─── send to W&B ──────────────────────────────────────
         wandb.log({
@@ -197,8 +212,8 @@ def main(cfg: DictConfig):
         ax2.set_ylim(H - 0.5, -0.5)   # invert y
 
         # draw either diamond or square overlay
-        if cfg.evals.distance.split_method == "l1":
-            # ℓ₁‐ball diamond (shift by 0.5 so edges align on pixel boundaries)
+        if split_method == "l1":
+            # l1‐ball diamond (shift by 0.5 so edges align on pixel boundaries)
             verts = [
                 (cx,              cy - threshold - 0.5),    # top
                 (cx + threshold + 0.5, cy),    # right
@@ -232,6 +247,12 @@ def main(cfg: DictConfig):
             f"{name}/raw_obs_overlay": wandb.Image(fig2, caption=f"{name} (near region)")
         })
         plt.close(fig2)
+
+
+    out_fname = f"box_data_{seed}_{now}.json"
+    with open(out_fname, "w") as fp:
+        json.dump(box_data, fp, indent=2)
+    print(f"Saved all boxplot scalars to {out_fname}")
 
     wandb.finish()
 
