@@ -157,7 +157,7 @@ def main(cfg: DictConfig):
         grid = 15
         num_obs = 20
         total_timesteps = 600000  # default is 1 mil
-        seeds = list(range(0))
+        seeds = list(range(3))
 
         if (cfg.eval_encoder == "single_step") or (cfg.eval_encoder == "acro"):
             penalty = cfg.algos.acro.l1_penalty if (cfg.eval_encoder == "acro") else cfg.algos.single_step.l1_penalty
