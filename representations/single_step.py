@@ -36,6 +36,7 @@ class SingleStep(torch.nn.Module):
 
         self.l1_penalty = cfg.algos.single_step.l1_penalty
         self.dynamic_l1_penalty = cfg.algos.single_step.dynamic_l1_penalty
+
         self.train_stop_epochs = cfg.algos.single_step.train_stop_epochs
 
         self.optimizer = torch.optim.Adam(
@@ -100,6 +101,7 @@ class SingleStep(torch.nn.Module):
         p = F.softmax(o_encoded, dim=1)
         l2_per = torch.linalg.norm(p, ord=2, dim=1)
         l2_loss = l2_per.mean() * self.l2_penalty
+        # l2_loss = -l2_per.mean() * self.l2_penalty  # FIXME: Maximize l2
 
         if self.use_l2_norm:
             total_loss = (
