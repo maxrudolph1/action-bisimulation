@@ -47,3 +47,5 @@ python main.py algos='[acro]' n_epochs=80 algos.acro.l1_penalty=0.0001 algos.acr
 # TESTING/SANDBOXING
 # python main.py algos='[acro]' n_epochs=10 algos.acro.k_steps=1 wandb=True train_evaluators=False name=acro_k1_no_eval_test
 # python main.py algos='[acro]' n_epochs=1 algos.acro.k_steps=1 wandb=True train_evaluators=False name=acro_k1_pipeline_test eval_encoder='acro'
+
+# NOTE: Can run 40 epochs in the future

@@ -1,0 +1,11 @@
+# K=2 L2
+python main.py algos='[acro]' name='acro_k2_l2_0001_swps' n_epochs=15 algos.acro.l2_penalty=0.0001 algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_0002_swps' n_epochs=15 algos.acro.l2_penalty=0.0002 algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_0005_swps' n_epochs=15 algos.acro.l2_penalty=0.0005 algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_001_swps'  n_epochs=15 algos.acro.l2_penalty=0.001  algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_002_swps'  n_epochs=15 algos.acro.l2_penalty=0.002  algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_005_swps'  n_epochs=15 algos.acro.l2_penalty=0.005  algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_01_swps'   n_epochs=15 algos.acro.l2_penalty=0.01   algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_02_swps'   n_epochs=15 algos.acro.l2_penalty=0.02   algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_05_swps'   n_epochs=15 algos.acro.l2_penalty=0.05   algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'
+python main.py algos='[acro]' name='acro_k2_l2_1_swps'    n_epochs=15 algos.acro.l2_penalty=0.1    algos.acro.use_l2_norm=True algos.acro.k_steps=2 wandb=True train_evaluators=False eval_encoder='acro'

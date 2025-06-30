@@ -45,11 +45,10 @@ class QNetwork(nn.Module):
 
         latent_path = encoder_cfg.get("latent_encoder_path")
         if (latent_path) and (len(latent_path) > 0):
-            # FIXME: Try both freezing and not freezing the encoder (not sure which one is right now?)
+            # note that this only trained on 1, 3, 15, 15 images
             self.encoder = torch.load(latent_path)['encoder']  # 64 dim latent space
-            # ASK:Help, this is only trained on 1, 3, 15, 15 images
 
-            # freeze the encoder weights
+            # NOTE: freeze the encoder weights
             # for param in self.encoder.parameters():
             #     param.requires_grad = False
         else:
@@ -61,7 +60,10 @@ class QNetwork(nn.Module):
         self.obs_shape = obs_shape
 
     def forward(self, x):
-        x = x.float() / 255.0
+        # x should be B x C x H x W and takes values in range [0, 255]
+        # normalize to [-1, 1]
+        x = x / 255.0 * 2.0 - 1.0
+        # encode
         latent = self.encoder(x)
         return self.q_value_head(latent)
 
@@ -97,7 +99,7 @@ def run_rl(cfg: DictConfig):
     assert cfg.num_envs == 1, "vectorized envs are not supported at the moment"
 
     cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_name = f"{cfg.exp_name}__grid_{cfg.env.grid_size}_obstacles_{cfg.env.num_obstacles}__datetime_{cur_date_time}"
+    run_name = f"{cfg.exp_name}__grid_{cfg.env.grid_size}_obstacles_{cfg.env.num_obstacles}_seed_{cfg.seed}_datetime_{cur_date_time}"
     if cfg.use_wandb:
         import wandb
 
@@ -151,6 +153,7 @@ def run_rl(cfg: DictConfig):
     obs, _ = envs.reset(seed=cfg.seed)
 
     for global_step in tqdm(range(cfg.total_timesteps), desc="global_steps", unit="step"):
+        # print(global_step)
         # ALGO LOGIC: put action logic here
         epsilon = linear_schedule(cfg.rl.start_epsilon, cfg.rl.end_epsilon, cfg.rl.exploration_fraction * cfg.total_timesteps, global_step)
         if random.random() < epsilon:
@@ -183,7 +186,7 @@ def run_rl(cfg: DictConfig):
             step_list.append(infos["steps_taken"])
             if (cfg.use_wandb):
                 wandb.log({"reward_metrics/steps_to_goal": infos["steps_taken"]}, step=global_step)
-                wandb.log({"reward_metrics/cumulative_reward": infos["cumulative_reward"]}, step=global_step)
+                wandb.log({"reward_metrics/episodic_return": infos["episodic_return"]}, step=global_step)
                 wandb.log({"reward_metrics/optimal_path_len": infos["optimal_path_length"]}, step=global_step)
 
 
@@ -240,7 +243,7 @@ def run_rl(cfg: DictConfig):
                     action = torch.argmax(q_values, dim=1).cpu().numpy().squeeze()
                     obs, reward, terminated, truncated, info = eval_env.step(action)
 
-                rewards.append(info["cumulative_reward"])
+                rewards.append(info["episodic_return"])
                 successes.append(info["success"])
                 optimal_path_lengths.append(info["optimal_path_length"])
                 my_path_lengths.append(info["steps_taken"])
@@ -249,7 +252,7 @@ def run_rl(cfg: DictConfig):
             path_length_ratio = np.array(optimal_path_lengths) / np.array(my_path_lengths)
 
             if cfg.use_wandb:
-                wandb.log({"evals/avg_cumulative_reward": np.mean(rewards)}, step=global_step)
+                wandb.log({"evals/avg_episodic_return": np.mean(rewards)}, step=global_step)
                 wandb.log({"evals/avg_success_rate": np.mean(successes)}, step=global_step)
                 wandb.log({"evals/avg_path_length_diff": np.mean(diff_path_lengths)}, step=global_step)
                 wandb.log({"evals/avg_path_length_ratio": np.mean(path_length_ratio)}, step=global_step)

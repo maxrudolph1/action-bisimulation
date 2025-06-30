@@ -29,8 +29,13 @@ class Acro(torch.nn.Module):
         self.learning_rate = cfg.algos.acro.learning_rate
         self.weight_decay = cfg.algos.acro.weight_decay
         self.forward_weight = cfg.algos.acro.forward_weight
+
+        self.l2_penalty = cfg.algos.acro.l2_penalty
+        self.use_l2_norm = cfg.algos.acro.use_l2_norm
+
         self.l1_penalty = cfg.algos.acro.l1_penalty
         self.dynamic_l1_penalty = cfg.algos.acro.dynamic_l1_penalty
+
         self.train_stop_epochs = cfg.algos.acro.train_stop_epochs
 
         self.k_steps = cfg.algos.acro.k_steps
@@ -73,7 +78,7 @@ class Acro(torch.nn.Module):
         else:
             forward_model_loss = 0
 
-        if self.l1_penalty > 0:
+        if self.l1_penalty > 0 and not self.use_l2_norm:
             l1_loss = (
                 torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean()
                 + torch.linalg.vector_norm(on_encoded, ord=1, dim=1).mean()
@@ -87,9 +92,9 @@ class Acro(torch.nn.Module):
             act,
         )
 
-        accuracy =  torch.mean(
-                (torch.argmax(inverse_model_pred, dim=1) == act).float()
-            )
+        accuracy = torch.mean(
+            (torch.argmax(inverse_model_pred, dim=1) == act).float()
+        )
 
         if self.dynamic_l1_penalty:
             gain = 5
@@ -99,11 +104,24 @@ class Acro(torch.nn.Module):
 
         l1_loss = cur_l1_penalty * l1_loss
         forward_model_loss = self.forward_weight * forward_model_loss
-        total_loss = (
-            forward_model_loss
-            + l1_loss
-            + inverse_model_loss
-        )
+
+        # l2 loss stuff
+        p = F.softmax(o_encoded, dim=1)
+        l2_per = torch.linalg.norm(p, ord=2, dim=1)
+        l2_loss = l2_per.mean() * self.l2_penalty
+
+        if self.use_l2_norm:
+            total_loss = (
+                forward_model_loss
+                + l2_loss
+                + inverse_model_loss
+            )
+        else:
+            total_loss = (
+                forward_model_loss
+                + l1_loss
+                + inverse_model_loss
+            )
 
         self.optimizer.zero_grad()
         total_loss.backward()
@@ -112,6 +130,7 @@ class Acro(torch.nn.Module):
         ret = {
             "inverse_loss": inverse_model_loss.detach().item(),
             "l1_loss": l1_loss.detach().item(),
+            "l2_loss": l2_loss.detach().item(),
             "loss": total_loss.detach().item(),
             "accuracy": accuracy.detach().item(),
             "cur_l1_penalty": cur_l1_penalty,

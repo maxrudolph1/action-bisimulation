@@ -1,0 +1,11 @@
+# @package algos.nce
+name: nce
+temperature: 0.1
+learning_rate: 0.0001
+k_steps: 1  # 1 is default
+method: "l1"  # options: cos or l1
+weight_decay: 0.0
+use_gen_nets: True
+dynamic_l1_penalty: True
+defaults:
+  - networks/cnn@encoder

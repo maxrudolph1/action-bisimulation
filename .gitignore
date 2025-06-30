@@ -1,6 +1,7 @@
 **/*.hdf5
 **/*.pyc
 outputs/
+saved_models/
 wandb/
 results/
 log/
@@ -10,3 +11,6 @@ runs/
 videos/
 **/*.mp4
 **/*.gif
+
+actbisim.egg-info/
+.vscode/

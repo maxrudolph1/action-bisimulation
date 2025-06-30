@@ -24,6 +24,7 @@ from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
 from representations.bvae import BetaVariationalAutoencoder
 from representations.evaluators import Evaluators
+from representations.info_nce import NCE
 
 from call_rl_main import call_rl
 
@@ -32,7 +33,8 @@ MODEL_DICT = {'single_step': SingleStep,
               'multi_step': MultiStep,
               'bvae': BetaVariationalAutoencoder,
               'evaluators': Evaluators,
-              'acro': Acro}
+              'acro': Acro,
+              'nce': NCE}
 
 
 def load_dataset(dataset_path):
@@ -105,11 +107,14 @@ def main(cfg: DictConfig):
     wandb_name = None
     if cfg.wandb:
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        # name = f"{cfg.name}_{cur_date_time}"
-        name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_30_obstcls_100_smpls_1250000_{cur_date_time}"
+        name = f"{cfg.name}_{cur_date_time}"
+        # name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",
+            # group="ms_acro_grd_30_obstcls_100",
             name=name,
             config=OmegaConf.to_container(cfg)
         )
@@ -146,13 +151,51 @@ def main(cfg: DictConfig):
         dataset = None
 
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
-        call_rl(
-            name=("dqn_" + log_name),
-            grid_size=30,
-            num_obstacles=100,
-            latent_encoder_path=save_paths[cfg.eval_encoder],
-        )
+        wandb.finish()
+        # grid = 30
+        # num_obs = 100
+        grid = 15
+        num_obs = 20
+        total_timesteps = 600000  # default is 1 mil
+        seeds = list(range(2))
 
+        if (cfg.eval_encoder == "single_step") or (cfg.eval_encoder == "acro"):
+            penalty = cfg.algos.acro.l1_penalty if (cfg.eval_encoder == "acro") else cfg.algos.single_step.l1_penalty
+
+            # base case with l1_penalty
+            for seed in seeds:
+                call_rl(
+                    name=("dqn_" + log_name),
+                    grid_size=grid,
+                    num_obstacles=num_obs,
+                    seed=seed,
+                    latent_encoder_path=save_paths[cfg.eval_encoder],
+                    l1_penalty=penalty,
+                    total_timesteps=total_timesteps,
+                )
+        elif (cfg.eval_encoder == "multi_step"):
+            # multi-step with gamma
+            for seed in seeds:
+                call_rl(
+                    name=("dqn_" + log_name),
+                    grid_size=grid,
+                    num_obstacles=num_obs,
+                    seed=seed,
+                    latent_encoder_path=save_paths[cfg.eval_encoder],
+                    gamma=cfg.algos.multi_step.gamma,
+                    total_timesteps=total_timesteps,
+                )
+        else:
+            # other?
+            for seed in seeds:
+                call_rl(
+                    name=("dqn_" + log_name),
+                    grid_size=grid,
+                    num_obstacles=num_obs,
+                    seed=seed,
+                    latent_encoder_path=save_paths[cfg.eval_encoder],
+                    total_timesteps=total_timesteps,
+                )
 
 
 def train(
@@ -191,6 +234,14 @@ def train(
 
             if cfg.wandb:
                 log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
+            else: # FIXME: remove this block because its just for debugging
+                if train_step % cfg.img_log_freq == 0:
+                    for model_name, evaluator in evaluators.items():
+                        imgs = evaluator.eval_imgs(samples)
+                        wandb_imgs_log = {
+                            f"{model_name}/{key}": img
+                            for key, img in imgs.items()
+                        }
 
             train_step += 1
 
