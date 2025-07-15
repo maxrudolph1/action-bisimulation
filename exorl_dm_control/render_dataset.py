@@ -8,14 +8,10 @@ sys.path.insert(0, os.path.expanduser('~/bisim/exorl'))
 import dmc
 
 
-# -----------------------------------------------------------------------------
-# Worker function: processes one chunk of episodes, dumping parts as we go
-# -----------------------------------------------------------------------------
 def process_chunk(args):
     task_name, file_list, out_dir, chunk_id = args
 
     try:
-        # each process builds its own env once
         env = dmc.make(
             task_name,
             obs_type='pixels',
@@ -33,7 +29,7 @@ def process_chunk(args):
             for state in phys:
                 with env.physics.reset_context():
                     env.physics.set_state(state)
-                frame = env.physics.render(width=64, height=64, camera_id=0)
+                frame = env.physics.render(width=128, height=128, camera_id=0)
                 images.append(frame)
 
             images = np.stack(images)
@@ -43,6 +39,9 @@ def process_chunk(args):
                 f"{out_dir}/{ep_id}.npz",
                 images=images,
                 physics=phys,
+                action=data['action'],
+                reward=data['reward'],
+                discount=data['discount'],
             )
         return len(file_list)
     except Exception as e:
@@ -51,16 +50,13 @@ def process_chunk(args):
         return 0
 
 
-# -----------------------------------------------------------------------------
-# Main: split files, launch Pool, collect stats, write metadata + samples
-# -----------------------------------------------------------------------------
 if __name__ == "__main__":
     import multiprocessing
     multiprocessing.set_start_method('spawn', force=True)
 
     task = 'point_mass_maze_reach_top_left'
     buffer_dir = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/buffer')
-    out_dir    = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/processed_true')
+    out_dir    = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/rendered_true')
 
     # gather all episodes
     all_eps = sorted(glob.glob(f"{buffer_dir}/*.npz"))
