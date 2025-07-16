@@ -7,6 +7,8 @@ from tqdm import tqdm
 sys.path.insert(0, os.path.expanduser('~/bisim/exorl'))
 import dmc
 
+os.environ['MUJOCO_GL'] = 'egl'
+
 
 def process_chunk(args):
     task_name, file_list, out_dir, chunk_id = args
