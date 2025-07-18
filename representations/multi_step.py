@@ -64,9 +64,6 @@ class MultiStep(torch.nn.Module):
 
     def share_dependant_models(self, models):
         pass
-        # if self.bc_encoder is None:
-        #     self.bc_encoder = models.get("single_step").encoder
-
 
     def train_step(self, batch, epoch, train_step):
         if epoch < self.ss_train_warmup_epochs:

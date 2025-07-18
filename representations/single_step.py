@@ -22,20 +22,30 @@ class SingleStep(torch.nn.Module):
         forward_cfg = cfg.algos.single_step.forward
         inverse_cfg = cfg.algos.single_step.inverse
 
-        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
-        self.embed_dim = self.encoder.output_dim
+        self.l2_penalty = cfg.algos.single_step.l2_penalty
+        self.use_l2_norm = cfg.algos.single_step.use_l2_norm
+
+        self.l1_penalty = cfg.algos.single_step.l1_penalty
+        self.dynamic_l1_penalty = cfg.algos.single_step.dynamic_l1_penalty
+
+        if self.use_l2_norm:
+            raw_encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+            self.embed_dim = raw_encoder.output_dim
+            self.encoder = torch.nn.Sequential(
+                raw_encoder,
+                torch.nn.Softmax(dim=1)
+            )
+            self.encoder.output_dim = self.embed_dim
+        else:
+            self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+            self.embed_dim = self.encoder.output_dim
+
         self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, forward_cfg).cuda()
         self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape, inverse_cfg).cuda()
 
         self.learning_rate = cfg.algos.single_step.learning_rate
         self.weight_decay = cfg.algos.single_step.weight_decay
         self.forward_weight = cfg.algos.single_step.forward_weight
-
-        self.l2_penalty = cfg.algos.single_step.l2_penalty
-        self.use_l2_norm = cfg.algos.single_step.use_l2_norm
-
-        self.l1_penalty = cfg.algos.single_step.l1_penalty
-        self.dynamic_l1_penalty = cfg.algos.single_step.dynamic_l1_penalty
 
         self.train_stop_epochs = cfg.algos.single_step.train_stop_epochs
 
@@ -98,23 +108,12 @@ class SingleStep(torch.nn.Module):
         forward_model_loss = self.forward_weight * forward_model_loss
 
         # l2 loss stuff
-        p = F.softmax(o_encoded, dim=1)
-        l2_per = torch.linalg.norm(p, ord=2, dim=1)
-        l2_loss = l2_per.mean() * self.l2_penalty
-        # l2_loss = -l2_per.mean() * self.l2_penalty  # FIXME: Maximize l2
-
         if self.use_l2_norm:
-            total_loss = (
-                forward_model_loss
-                + l2_loss
-                + inverse_model_loss
-            )
+            l2_per = torch.linalg.norm(o_encoded, ord=2, dim=1)
+            l2_loss = l2_per.mean() * self.l2_penalty
+            total_loss = (forward_model_loss + l2_loss + inverse_model_loss)
         else:
-            total_loss = (
-                forward_model_loss
-                + l1_loss
-                + inverse_model_loss
-            )
+            total_loss = (forward_model_loss + l1_loss + inverse_model_loss)
 
         self.optimizer.zero_grad()
         total_loss.backward()

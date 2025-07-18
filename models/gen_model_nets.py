@@ -18,8 +18,8 @@ class GenEncoder(torch.nn.Module):
             self.output_dim = cfg['output_dim']
             self.last_layer = nn.Sequential(nn.ReLU(), nn.Linear(self.cnn_encoder.output_dim, self.output_dim))
         else:
-            self.output_dim = self.encoder.output_dim
             self.use_output_layer = False
+            self.output_dim = self.encoder.output_dim
         self.cfg = cfg
         self.obs_dim = obs_dim
 
