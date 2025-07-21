@@ -56,6 +56,21 @@ def load_dataset(dataset_path):
     return dataset, obs_shape, act_shape
 
 
+class PointMazeDataset(Dataset):
+    def __init__(self, wrappers):
+        # wrappers is the dict {"obs": obs_wrap, "obs_next": next_wrap, "action": act_wrap}
+        self.obs = wrappers["obs"]
+        self.obs_next = wrappers["obs_next"]
+        self.act = wrappers["action"]
+    def __len__(self):
+        return len(self.obs)
+    def __getitem__(self, idx):
+        # h5 wrappers return numpy -> torch will auto‑convert if collate_fn is default
+        return ( self.obs[idx], 
+                 self.obs_next[idx], 
+                 self.act[idx].squeeze()  # to get shape (,) instead of (1,)
+               )
+
 
 class H5SliceWrapper:
     """Wrap a h5py Dataset + a valid‐index array so that
@@ -195,7 +210,8 @@ def main(cfg: DictConfig):
     for dataset_file in cfg.datasets:
         print(f"LOADING {dataset_file}...")
         # dataset, obs_shape, act_shape = load_dataset(dataset_file)
-        dataset, obs_shape, act_shape = load_pointmaze_dataset(dataset_file, max_transitions=500000)
+        wrappers, obs_shape, act_shape = load_pointmaze_dataset(dataset_file, max_transitions=1500000)
+        dataset = PointMazeDataset(wrappers)
         print(f"FINISHED LOADING {dataset_file}")
 
         if first_dataset:
@@ -204,9 +220,17 @@ def main(cfg: DictConfig):
             models = initialize_dependant_models(models)
             first_dataset = False
 
+        loader = DataLoader(
+            dataset,
+            batch_size=cfg.batch_size,
+            shuffle=True,
+            num_workers=8,       # adjust to your machine
+            pin_memory=True,
+        )
+
         train_step, save_paths, log_name = train(
             cfg,
-            dataset,
+            loader,
             models,
             evaluators,
             train_step,
@@ -266,50 +290,76 @@ def main(cfg: DictConfig):
 
 def train(
     cfg: DictConfig,
-    dataset,
+    loader: DataLoader,
     models,
     evaluators,
     train_step,
     wandb_name,
     cur_date_time
 ):
-    dataset_keys = list(dataset.keys())
+    # dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
 
     for epoch in range(cfg.n_epochs):
-        sample_ind_all = np.random.permutation(len(dataset["obs"]))
-        # sample_ind_next = np.random.permutation(len(dataset["obs"]))
-        steps_per_epoch = -(len(sample_ind_all) // -cfg.batch_size)
+        for batch in tqdm.tqdm(loader, desc=f"Epoch #{epoch}"):
+            # batch is a tuple: (obs_np, obs_next_np, act_np)
+            obs_np, obs_next_np, act_np = batch
 
-        for i in tqdm.tqdm(range(steps_per_epoch), desc=f"Epoch #{epoch}"):
-            start = i * cfg.batch_size
-            end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
-            sample_ind = np.sort(sample_ind_all[start:end])
-            samples = {key: dataset[key][sample_ind] for key in dataset_keys}
+            # 2) Transfer to GPU (non_blocking because pin_memory=True)
+            obs      = obs_np.cuda(non_blocking=True)
+            obs_next = obs_next_np.cuda(non_blocking=True)
+            action   = act_np.cuda(non_blocking=True).long()
 
-            # train the representation models
-            for model_name, model in models.items():
-                log = model.train_step(samples, epoch, train_step)
-                wandb_logs[model_name].update(log)
+            samples = {
+                "obs":      obs,
+                "obs_next": obs_next,
+                "action":   action,
+            }
 
-            # train the evaluator models if needed
-            if cfg.train_evaluators:
-                for model_name, evaluator in evaluators.items():
-                    log = evaluator.train_step(samples, epoch, train_step)
-                    wandb_logs[model_name].update(log)
+            # 3) Run your step
+            for name, model in models.items():
+                logs = model.train_step(samples, epoch, train_step)
+                wandb_logs[name].update(logs)
 
             if cfg.wandb:
                 log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
-            else: # FIXME: remove this block because its just for debugging
-                if train_step % cfg.img_log_freq == 0:
-                    for model_name, evaluator in evaluators.items():
-                        imgs = evaluator.eval_imgs(samples)
-                        wandb_imgs_log = {
-                            f"{model_name}/{key}": img
-                            for key, img in imgs.items()
-                        }
 
             train_step += 1
+
+    # for epoch in range(cfg.n_epochs):
+    #     sample_ind_all = np.random.permutation(len(dataset["obs"]))
+    #     # sample_ind_next = np.random.permutation(len(dataset["obs"]))
+    #     steps_per_epoch = -(len(sample_ind_all) // -cfg.batch_size)
+    #
+    #     for i in tqdm.tqdm(range(steps_per_epoch), desc=f"Epoch #{epoch}"):
+    #         start = i * cfg.batch_size
+    #         end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
+    #         sample_ind = np.sort(sample_ind_all[start:end])
+    #         samples = {key: dataset[key][sample_ind] for key in dataset_keys}
+    #
+    #         # train the representation models
+    #         for model_name, model in models.items():
+    #             log = model.train_step(samples, epoch, train_step)
+    #             wandb_logs[model_name].update(log)
+    #
+    #         # train the evaluator models if needed
+    #         if cfg.train_evaluators:
+    #             for model_name, evaluator in evaluators.items():
+    #                 log = evaluator.train_step(samples, epoch, train_step)
+    #                 wandb_logs[model_name].update(log)
+    #
+    #         if cfg.wandb:
+    #             log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
+    #         else: # FIXME: remove this block because its just for debugging
+    #             if train_step % cfg.img_log_freq == 0:
+    #                 for model_name, evaluator in evaluators.items():
+    #                     imgs = evaluator.eval_imgs(samples)
+    #                     wandb_imgs_log = {
+    #                         f"{model_name}/{key}": img
+    #                         for key, img in imgs.items()
+    #                     }
+    #
+    #         train_step += 1
 
     # time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     # logdir = os.path.join(cfg.logdir, time_str)

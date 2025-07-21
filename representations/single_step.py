@@ -68,6 +68,9 @@ class SingleStep(torch.nn.Module):
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
 
+        # NOTE: FOR POINTMAZE ONLY
+        obs = obs.float() / 127.5 - 1.0
+
         if self.forward_weight > 0:
             forward_model_loss = F.mse_loss(
                 self.forward_model(o_encoded, act),
