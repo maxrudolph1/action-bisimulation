@@ -54,6 +54,43 @@ def load_dataset(dataset_path):
     return dataset, obs_shape, act_shape
 
 
+def load_pointmaze_dataset(dataset_path, boundary=1000):
+    """
+    Returns a dict with keys
+      'obs'       : np.ndarray of shape (N_transitions, H, W, 3)
+      'obs_next'  : np.ndarray of same shape as obs
+      'action'    : np.ndarray of shape (N_transitions, 1)  (dtype int)
+    dropping any transition that straddles the boundary every `boundary` steps.
+    """
+    with h5py.File(dataset_path, 'r') as f:
+        imgs       = f['images'][:]      # (T, H, W, 3)
+        actions    = f['action'][:]      # (T, 1)
+        # ep_lens    = f['episode_lengths'][:]
+        
+    # boundaries = np.cumsum(ep_lens)
+    ep_len = 1000
+    n_eps = imgs.shape[0]
+    boundaries = np.arange(0, n_eps * ep_len, ep_len)
+
+    # build a flat array of all valid i where i+1 isn’t a boundary
+    all_i = np.arange(imgs.shape[0] - 1)
+    invalid = boundaries - 1
+    valid = np.setdiff1d(all_i, invalid, assume_unique=True)
+
+    obs = imgs[valid]
+    obs_next = imgs[valid+1]
+    act = actions[valid]
+    
+    dataset = {
+        "obs":       obs,
+        "obs_next":  obs_next,
+        "action":    act,
+    }
+    obs_shape = obs.shape[1:]
+    act_shape = int(act.max()) + 1
+
+    return dataset, obs_shape, act_shape
+
 def create_models(cfg: DictConfig, obs_shape, act_shape):
     algo_cfgs = cfg.algos
     model_names = list(algo_cfgs.keys())
