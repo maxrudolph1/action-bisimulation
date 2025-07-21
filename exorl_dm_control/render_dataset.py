@@ -14,7 +14,7 @@ os.environ['MUJOCO_GL'] = 'egl'
 TASK = 'point_mass_maze_reach_top_left'
 DISCRETE = True
 BUFFER_DIR = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/buffer')
-OUT_PATH = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/all_eps.hdf5')
+OUT_PATH = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/all_eps__eplen.hdf5')
 IMG_H, IMG_W = 64, 64
 
 
@@ -55,6 +55,7 @@ def process_chunk(args):
     )
 
     images, physics, actions, rewards, discounts = [], [], [], [], []
+    ep_lens = []
     cont2disc, disc2cont = make_discrete_mappings()
 
     for ep in tqdm(file_list, desc=f"Worker {seed}", position=seed, leave=False):
@@ -105,6 +106,7 @@ def process_chunk(args):
             actions.append(np.array(new_acts, dtype=np.int32))
             rewards.append(np.array(new_rews) [..., None])
             discounts.append(np.array(new_discs) [..., None])
+        ep_lens.append(images[-1].shape[0])
 
     return (
         np.concatenate(images, axis=0),
@@ -112,6 +114,7 @@ def process_chunk(args):
         np.concatenate(actions, axis=0),
         np.concatenate(rewards, axis=0),
         np.concatenate(discounts, axis=0),
+        np.array(ep_lens, dtype=np.int32),
     )
 
 
@@ -144,9 +147,12 @@ if __name__ == "__main__":
         hf.create_dataset('discount',
             shape=(0,1), maxshape=(None,1),
             dtype='float32', chunks=(1024,1), compression='gzip')
+        hf.create_dataset('episode_lengths',
+            shape=(0,), maxshape=(None,),
+            dtype='int32', chunks=(1024,), compression='gzip')
 
         with Pool(N) as pool:
-            for imgs, phys, acts, rews, discs in tqdm(
+            for imgs, phys, acts, rews, discs, ep_len in tqdm(
                     pool.imap_unordered(process_chunk, args),
                     total=N, desc="Appending chunks"):
 
@@ -163,7 +169,13 @@ if __name__ == "__main__":
                     ds.resize(old + T, axis=0)
                     ds[old:old+T] = arr
 
+                M = ep_len.shape[0]
+                ds = hf["episode_lengths"]
+                old = ds.shape[0]
+                ds.resize(old + M, axis=0)
+                ds[old:old + M] = ep_len
+
                 # free the chunk from memory
-                del imgs, phys, acts, rews, discs
+                del imgs, phys, acts, rews, discs, ep_len
 
         hf.attrs['total_steps'] = hf['images'].shape[0]
