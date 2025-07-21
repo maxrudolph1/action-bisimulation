@@ -2,7 +2,7 @@ import numpy as np
 import os
 import glob
 
-def examine_episode(episode_path):
+def examine_raw_episode(episode_path):
     data = np.load(episode_path)
     print(f"Episode: {episode_path}")
     print(f"Keys: {list(data.keys())}")
@@ -12,10 +12,15 @@ def examine_episode(episode_path):
         print(f" ---Sample {key}: {data[key][10]}")
     print()
 
-# Examine first few episodes
-buffer_dir = "~/bisim/exorl/datasets/point_mass_maze/rnd/buffer"
-# episodes = sorted(glob.glob(os.path.expanduser(f"{buffer_dir}/*.npz")))
-episodes = glob.glob(os.path.expanduser(f"{buffer_dir}/*.npz"))
 
-for ep in episodes[:2]:
-    examine_episode(ep)
+def main():
+    # Raw Episodes
+    buffer_dir = "~/bisim/exorl/datasets/point_mass_maze/rnd/buffer"
+    episodes = glob.glob(os.path.expanduser(f"{buffer_dir}/*.npz"))
+
+    for ep in episodes[:2]:
+        examine_raw_episode(ep)
+
+
+if __name__ == "__main__":
+    main()

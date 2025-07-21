@@ -33,7 +33,7 @@ def action_set(obs):
     move_idx[2,:,1] += 1
     move_idx[3,:,1] -= 1
     
-    move_idx = move_idx.transpose(1,0) 
+    move_idx = move_idx.transpose(1,0)
     batch_idx = torch.arange(0,N).unsqueeze(-1).repeat(1,4).unsqueeze(-1).cuda()
 
     move_idx = torch.cat([batch_idx, move_idx], dim=-1)
