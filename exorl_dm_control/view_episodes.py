@@ -52,8 +52,8 @@ if __name__ == "__main__":
     dataset_path = "/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_0721.hdf5"
     starts, ends = load_episode_boundaries(dataset_path)
     print("Found", len(starts), "episode starts and", len(ends), "ends")
-    for i, (s, e) in enumerate(zip(starts, ends)):
-        print(f"  Episode {i:03d}: frames {s} .. {e} (length {e-s+1})")
+    # for i, (s, e) in enumerate(zip(starts, ends)):
+    #     print(f"  Episode {i:03d}: frames {s} .. {e} (length {e-s+1})")
 
     reader = PointMazeH5Reader(dataset_path)
     for i, (s, e) in enumerate(zip(starts, ends)):
