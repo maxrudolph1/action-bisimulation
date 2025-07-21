@@ -15,6 +15,8 @@ import wandb
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
+from torch.utils.data import Dataset, DataLoader
+
 # import torch.nn.functional as F
 import random
 # from environments.nav2d.utils import perturb_heatmap
@@ -54,42 +56,65 @@ def load_dataset(dataset_path):
     return dataset, obs_shape, act_shape
 
 
-def load_pointmaze_dataset(dataset_path, boundary=1000):
+
+class H5SliceWrapper:
+    """Wrap a h5py Dataset + a valid‐index array so that
+       wrapper[idx] → ds[valid_indices[idx]] without preloading."""
+    def __init__(self, ds: h5py.Dataset, valid_idx: np.ndarray):
+        print("Creating wrapper...")
+        self.ds = ds
+        self.valid = valid_idx
+        print("Finished wrapper")
+
+    def __len__(self):
+        return len(self.valid)
+
+    def __getitem__(self, idx):
+        # allow integer or array indexing
+        return self.ds[self.valid[idx]]
+
+
+def load_pointmaze_dataset(dataset_path, boundary=1000, max_transitions=None):
     """
-    Returns a dict with keys
-      'obs'       : np.ndarray of shape (N_transitions, H, W, 3)
-      'obs_next'  : np.ndarray of same shape as obs
-      'action'    : np.ndarray of shape (N_transitions, 1)  (dtype int)
-    dropping any transition that straddles the boundary every `boundary` steps.
+    Lazily open the PointMaze HDF5 and return three H5SliceWrapper objects
+    for obs, obs_next, action so that data[k] only pulls those frames.
     """
-    with h5py.File(dataset_path, 'r') as f:
-        imgs       = f['images'][:]      # (T, H, W, 3)
-        actions    = f['action'][:]      # (T, 1)
-        # ep_lens    = f['episode_lengths'][:]
-        
-    # boundaries = np.cumsum(ep_lens)
-    ep_len = 1000
-    n_eps = imgs.shape[0]
-    boundaries = np.arange(0, n_eps * ep_len, ep_len)
+    print(f"[PointMaze] opening {dataset_path!r}", flush=True)
+    f = h5py.File(dataset_path, 'r')
+    imgs = f['images'] # shape (T, H, W, 3)
+    acts = f['action'] # shape (T, 1)
+    # ep_lens = f['episode_lengths'][:]
 
-    # build a flat array of all valid i where i+1 isn’t a boundary
-    all_i = np.arange(imgs.shape[0] - 1)
-    invalid = boundaries - 1
-    valid = np.setdiff1d(all_i, invalid, assume_unique=True)
+    T = imgs.shape[0]
+    print(f"[PointMaze] dataset has {T} frames, boundary={boundary}", flush=True)
 
-    obs = imgs[valid]
-    obs_next = imgs[valid+1]
-    act = actions[valid]
-    
-    dataset = {
-        "obs":       obs,
-        "obs_next":  obs_next,
-        "action":    act,
-    }
-    obs_shape = obs.shape[1:]
-    act_shape = int(act.max()) + 1
+    all_steps = np.arange(T - 1, dtype=np.int64)
+    invalid = (np.arange(boundary - 1, T, boundary, dtype=np.int64))
+    valid   = np.setdiff1d(all_steps, invalid, assume_unique=True)
 
-    return dataset, obs_shape, act_shape
+    if max_transitions is not None:
+        valid = valid[:max_transitions]
+        print(f"[PointMaze] truncating to first {len(valid)} transitions", flush=True)
+    else:
+        print(f"[PointMaze] keeping {len(valid)}/{T-1} transitions", flush=True)
+
+    # build three wrappers
+    obs = H5SliceWrapper(imgs, valid)
+    obs_next = H5SliceWrapper(imgs, valid + 1)
+    action = H5SliceWrapper(acts, valid)
+    print("[PointMaze] built wrappers")
+
+    obs_shape = imgs.shape[1:] # (H, W, 3)
+    print("Obs shape:", obs_shape)
+    DISCRETE = True
+    if DISCRETE:
+        act_shape = 9 # FIXME: Make sure this is the correct formatting
+    else:
+        act_shape = acts.shape[1]
+    print("Action shape:", act_shape)
+
+    return {"obs": obs, "obs_next": obs_next, "action": action}, obs_shape, act_shape
+
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):
     algo_cfgs = cfg.algos
@@ -104,6 +129,7 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
             cfg=cfg
         )
         models[model_name] = model
+        continue # HACK: Fix this....
         evaluators[model_name] = Evaluators(
             obs_shape=obs_shape,
             act_shape=act_shape,
@@ -167,7 +193,9 @@ def main(cfg: DictConfig):
     train_step = 0
     first_dataset = True
     for dataset_file in cfg.datasets:
-        dataset, obs_shape, act_shape = load_dataset(dataset_file)
+        print(f"LOADING {dataset_file}...")
+        # dataset, obs_shape, act_shape = load_dataset(dataset_file)
+        dataset, obs_shape, act_shape = load_pointmaze_dataset(dataset_file, max_transitions=500000)
         print(f"FINISHED LOADING {dataset_file}")
 
         if first_dataset:
@@ -194,7 +222,8 @@ def main(cfg: DictConfig):
         grid = 15
         num_obs = 20
         total_timesteps = 600000  # default is 1 mil
-        seeds = list(range(2))
+        # seeds = list(range(2))
+        seeds = []
 
         if (cfg.eval_encoder == "single_step") or (cfg.eval_encoder == "acro"):
             penalty = cfg.algos.acro.l1_penalty if (cfg.eval_encoder == "acro") else cfg.algos.single_step.l1_penalty
