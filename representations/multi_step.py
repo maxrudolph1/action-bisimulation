@@ -104,6 +104,19 @@ class MultiStep(torch.nn.Module):
             obs_y_next = similar_action_obs_next
 
 
+        # NOTE: THIS STUFF IS THE CHANGE FROM BEFORE
+        # optimize latent forward model
+        for _ in range(self.forward_model_steps_per_batch):
+            latent_forward_prediction = self.forward_model(self.encoder(obs_x), act) # NOTE: This line was changed
+
+            forward_model_next_loss = F.smooth_l1_loss(
+                latent_forward_prediction,
+                self.encoder(obs_x_next).detach(), # NOTE: This line was changed
+            )
+            self.forward_model_optimizer.zero_grad()
+            forward_model_next_loss.backward()
+            self.forward_model_optimizer.step()
+
         ox_encoded_online = self.encoder(obs_x)
         oy_encoded_online = self.encoder(obs_y)
 
@@ -113,18 +126,17 @@ class MultiStep(torch.nn.Module):
             # oxk_encoded_target = self.target_encoder(kobs_x)  # target encoder z = \hat{phi}( x^(k) )
             oxn_encoded_target = self.target_encoder(obs_x_next) # target encoder z = \hat{phi}( x' )
 
-
-        # optimize latent forward model
-        for _ in range(self.forward_model_steps_per_batch):
-            latent_forward_prediction = self.forward_model(ox_encoded_target.detach(), act)
-
-            forward_model_next_loss = F.smooth_l1_loss(
-                latent_forward_prediction,
-                oxn_encoded_target.detach(),
-            )
-            self.forward_model_optimizer.zero_grad()
-            forward_model_next_loss.backward()
-            self.forward_model_optimizer.step()
+        # # optimize latent forward model
+        # for _ in range(self.forward_model_steps_per_batch):
+        #     latent_forward_prediction = self.forward_model(ox_encoded_target.detach(), act)
+        #
+        #     forward_model_next_loss = F.smooth_l1_loss(
+        #         latent_forward_prediction,
+        #         oxn_encoded_target.detach(),
+        #     )
+        #     self.forward_model_optimizer.zero_grad()
+        #     forward_model_next_loss.backward()
+        #     self.forward_model_optimizer.step()
 
         with torch.no_grad():
             ss_encoded_x = self.bc_encoder(obs_x)
