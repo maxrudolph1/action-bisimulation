@@ -45,8 +45,15 @@ def load_episode_boundaries(ds_path, ep_len=1000):
     n_eps = total // ep_len
     starts = np.arange(0, n_eps * ep_len, ep_len)
     ends = starts + ep_len - 1
-
     return starts, ends
+
+# Using the episode boundaries
+# def load_episode_boundaries(h5_path):
+#     with h5py.File(h5_path, 'r') as f:
+#         lengths = f['episode_lengths'][:]   # shape = (num_episodes,)
+#     starts = np.cumsum(np.concatenate([[0], lengths[:-1]]))
+#     ends   = starts + lengths - 1
+#     return starts, ends
 
 if __name__ == "__main__":
     dataset_path = "/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_0721.hdf5"
