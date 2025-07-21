@@ -62,7 +62,8 @@ class SingleStep(torch.nn.Module):
         if epoch >= self.train_stop_epochs:
             return {}
         obs = torch.as_tensor(batch["obs"], device="cuda")
-        act = torch.as_tensor(batch["action"], device="cuda")
+        # act = torch.as_tensor(batch["action"], device="cuda") # NOTE: changed for pointmaze
+        act = torch.as_tensor(batch["action"], device="cuda").squeeze(-1).long()
         obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
