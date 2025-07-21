@@ -1,4 +1,5 @@
-import os, sys, glob
+import os
+import sys, glob
 from multiprocessing import Pool, cpu_count
 import numpy as np
 import h5py
@@ -9,7 +10,6 @@ sys.path.insert(0, os.path.expanduser('~/bisim/exorl'))
 import dmc
 
 os.environ['MUJOCO_GL'] = 'egl'
-
 
 TASK = 'point_mass_maze_reach_top_left'
 DISCRETE = True
@@ -22,17 +22,17 @@ def make_discrete_mappings():
     # 9 actions: no-op, N, S, E, W, NE, NW, SE, SW
     vecs = {
       0: np.array([0.0, 0.0]),
-      1: np.array([1.0, 0.0]),   # East
-      2: np.array([-1.0, 0.0]),  # West
-      3: np.array([0.0, 1.0]),   # North
-      4: np.array([0.0, -1.0]),  # South
-      5: np.array([1.0, 1.0]),   # NE
-      6: np.array([-1.0, 1.0]),  # NW
-      7: np.array([1.0, -1.0]),  # SE
-      8: np.array([-1.0, -1.0]), # SW
+      1: np.array([1.0, 0.0]),    # East
+      2: np.array([-1.0, 0.0]),   # West
+      3: np.array([0.0, 1.0]),    # North
+      4: np.array([0.0, -1.0]),   # South
+      5: np.array([1.0, 1.0]),    # NE
+      6: np.array([-1.0, 1.0]),   # NW
+      7: np.array([1.0, -1.0]),   # SE
+      8: np.array([-1.0, -1.0]),  # SW
     }
     # normalize diagonals (so all actions have magnitude 1)
-    for k in (5,6,7,8):
+    for k in (5, 6, 7, 8):
         vecs[k] /= np.linalg.norm(vecs[k])
 
     def cont2disc(a2):
@@ -46,19 +46,12 @@ def make_discrete_mappings():
 def process_chunk(args):
     task_name, file_list, seed = args
 
-    pixel_env = dmc.make(
+    env = dmc.make(
         task_name,
         obs_type='pixels',
         frame_stack=1,
         action_repeat=1,
         seed=seed,
-    )
-    state_env = dmc.make(
-        task_name,
-        obs_type='states',
-        frame_stack=1,
-        action_repeat=1,
-        seed=seed+999,
     )
 
     images, physics, actions, rewards, discounts = [], [], [], [], []
@@ -67,61 +60,51 @@ def process_chunk(args):
     for ep in tqdm(file_list, desc=f"Worker {seed}", position=seed, leave=False):
         data = np.load(ep)
         cont_action = data['action']
-        if not DISCRETE:
-            phys = data['physics']
-            reward = data['reward']
-            disc = data['discount']
 
+        phys_orig = data['physics']
+        reward_orig = data['reward']
+        disc_orig = data['discount']
+        if not DISCRETE:
             frames = []
-            for state in phys:
-                with pixel_env.physics.reset_context():
-                    pixel_env.physics.set_state(state)
+            for state in phys_orig:
+                with env.physics.reset_context():
+                    env.physics.set_state(state)
                 frames.append(
-                    pixel_env.physics.render(width=IMG_W, height=IMG_H, camera_id=0)
+                    env.physics.render(width=IMG_W, height=IMG_H, camera_id=0)
                 )
             images.append(np.stack(frames, axis=0))
-            physics.append(phys)
+            physics.append(phys_orig)
             actions.append(np.array(cont_action, dtype=np.float32))
-            rewards.append(np.array(reward)[...,None])
-            discounts.append(np.array(disc)[...,None])
+            rewards.append(np.array(reward_orig)[..., None])
+            discounts.append(np.array(disc_orig)[..., None])
         else:
-            phys_init = data['physics'][0]
-
-            # start from initial state
-            with pixel_env.physics.reset_context():
-                pixel_env.physics.set_state(phys_init)
-            state_env.reset()
-            state_env.physics.set_state(phys_init)
+            phys_init = phys_orig[0]
+            ts0 = env.reset()
+            with env.physics.reset_context():
+                env.physics.set_state(phys_init)
 
             frames, new_phys, new_acts, new_rews, new_discs = [], [], [], [], []
 
-            for a_cont in cont_action:
-                ts = state_env.step(a_cont)
-                r = ts.reward if ts.reward is not None else 0.0
-                new_rews.append(float(r))
-                # new_rews.append(float(ts.reward))
-                d = ts.discount if ts.discount is not None else 1.0
-                new_discs.append(float(d))
-                # new_discs.append(float(ts.discount))
-
-                s = state_env.physics.get_state()
-                new_phys.append(s)
-
+            for a_cont, r0, d0 in zip(cont_action, reward_orig, disc_orig):
                 idx = cont2disc(a_cont)
-                new_acts.append([idx])
                 a_use = disc2cont[idx]
 
-                with pixel_env.physics.reset_context():
-                    pixel_env.physics.set_state(s)
-                frames.append(
-                    pixel_env.physics.render(width=IMG_W, height=IMG_H, camera_id=0)
-                )
+                ts = env.step(a_use)
+                if ts.last():
+                    break
+                new_rews.append(float(ts.reward) if ts.reward is not None else float(r0))
+                new_discs.append(float(ts.discount) if ts.discount is not None else float(d0))
+
+                s = env.physics.get_state()
+                new_phys.append(s)
+                new_acts.append([idx])
+                frames.append(env.physics.render(width=IMG_W, height=IMG_H, camera_id=0))
 
             images.append(np.stack(frames, axis=0))
             physics.append(np.stack(new_phys, axis=0))
             actions.append(np.array(new_acts, dtype=np.int32))
-            rewards.append(np.array(new_rews) [...,None])
-            discounts.append(np.array(new_discs) [...,None])
+            rewards.append(np.array(new_rews) [..., None])
+            discounts.append(np.array(new_discs) [..., None])
 
     return (
         np.concatenate(images, axis=0),
@@ -140,6 +123,7 @@ if __name__ == "__main__":
     N = min(max(cpu_count()-2, 1), len(all_eps))
     chunks = [all_eps[i::N] for i in range(N)]
     args = [(TASK, chunks[i], i) for i in range(N)]
+
 
     with h5py.File(OUT_PATH, 'w') as hf:
         hf.create_dataset('images',
@@ -160,7 +144,7 @@ if __name__ == "__main__":
         hf.create_dataset('discount',
             shape=(0,1), maxshape=(None,1),
             dtype='float32', chunks=(1024,1), compression='gzip')
-    
+
         with Pool(N) as pool:
             for imgs, phys, acts, rews, discs in tqdm(
                     pool.imap_unordered(process_chunk, args),
