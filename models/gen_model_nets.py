@@ -22,11 +22,22 @@ class GenEncoder(torch.nn.Module):
             self.output_dim = self.encoder.output_dim
         self.cfg = cfg
         self.obs_dim = obs_dim
+        self.normalization = cfg.get('normalization', None)
 
     def forward(self, obs):
         z = self.cnn_encoder(obs)
         if self.use_output_layer:
             z = self.last_layer(z)
+
+        if self.normalization == 'l1':
+            z = F.normalize(z, p=1, dim=1)
+        elif self.normalization == 'l2':
+            z = F.normalize(z, p=2, dim=1)
+        elif self.normalization == 'softmax':
+            z = F.softmax(z, dim=1)
+        elif self.normalization is None:
+            pass
+
         return z
 
     def save(self, path):
