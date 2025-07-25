@@ -10,9 +10,6 @@ import torch
 
 from . import utils
 
-# import pdb
-
-
 class SingleStep(torch.nn.Module):
     def __init__(
         self, obs_shape, act_shape, cfg,
@@ -22,23 +19,20 @@ class SingleStep(torch.nn.Module):
         forward_cfg = cfg.algos.single_step.forward
         inverse_cfg = cfg.algos.single_step.inverse
 
+        if encoder_cfg.normalization == 'l1':
+            assert cfg.algos.single_step.l1_penalty == 0, "l1 normalization and l1 penalty must not be used together"
+        if encoder_cfg.normalization == 'l2':
+            assert cfg.algos.single_step.l2_penalty == 0, "l2 normalization and l2 penalty must not be used together"
+        if encoder_cfg.normalization == 'softmax':
+            assert cfg.algos.single_step.l1_penalty == 0, "softmax normalization and l1 penalty must not be used together"
+
         self.l2_penalty = cfg.algos.single_step.l2_penalty
-        self.use_l2_norm = cfg.algos.single_step.use_l2_norm
-
         self.l1_penalty = cfg.algos.single_step.l1_penalty
-        self.dynamic_l1_penalty = cfg.algos.single_step.dynamic_l1_penalty
 
-        if self.use_l2_norm:
-            raw_encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
-            self.embed_dim = raw_encoder.output_dim
-            self.encoder = torch.nn.Sequential(
-                raw_encoder,
-                torch.nn.Softmax(dim=1)
-            )
-            self.encoder.output_dim = self.embed_dim
-        else:
-            self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
-            self.embed_dim = self.encoder.output_dim
+        self.dynamic_regularization_penalty = cfg.algos.single_step.dynamic_regularization_penalty
+
+        self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+        self.embed_dim = self.encoder.output_dim
 
         self.forward_model = gen_model_nets.GenForwardDynamics(self.embed_dim, act_shape, forward_cfg).cuda()
         self.inverse_model = gen_model_nets.GenInverseDynamics(self.embed_dim, act_shape, inverse_cfg).cuda()
@@ -75,14 +69,16 @@ class SingleStep(torch.nn.Module):
         else:
             forward_model_loss = 0
 
-        if self.l1_penalty > 0 and not self.use_l2_norm:
+        if self.l1_penalty > 0:
             l1_loss = (
                 torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean()
                 + torch.linalg.vector_norm(on_encoded, ord=1, dim=1).mean()
             ) / 2
-            # pdb.set_trace()
-        else:
-            l1_loss = torch.zeros(1, device="cuda")
+        elif self.l2_penalty > 0:
+            l2_loss = (
+                torch.linalg.norm(o_encoded, ord=2, dim=1).mean()
+                + torch.linalg.norm(on_encoded, ord=2, dim=1).mean()
+            ) / 2
 
         inverse_model_pred = self.inverse_model(o_encoded, on_encoded)
         inverse_model_loss = F.cross_entropy(
@@ -94,44 +90,37 @@ class SingleStep(torch.nn.Module):
             (torch.argmax(inverse_model_pred, dim=1) == act).float()
         )
 
-        if self.dynamic_l1_penalty:
+        if self.dynamic_regularization_penalty:
             gain = 5
-            cur_l1_penalty = self.l1_penalty * np.exp(- gain * (accuracy.detach().item() - 1) ** 2)
-        else:
-            cur_l1_penalty = self.l1_penalty
+            multiplier =  np.exp(- gain * (accuracy.detach().item() - 1) ** 2)
 
-        # gives us the mean of the encoded states
-        pre_penalized_l1_loss = l1_loss.detach().item()  # NOTE: mostly for debugging
-
-        l1_loss = cur_l1_penalty * l1_loss
-        # pdb.set_trace()
         forward_model_loss = self.forward_weight * forward_model_loss
 
-        # l2 loss stuff
-        if self.use_l2_norm:
-            l2_per = torch.linalg.norm(o_encoded, ord=2, dim=1)
-            l2_loss = l2_per.mean() * self.l2_penalty
-            total_loss = (forward_model_loss + l2_loss + inverse_model_loss)
+        # regularization loss stuff
+        if self.l2_penalty > 0:
+            total_loss = (forward_model_loss + multiplier * self.l2_penalty * l2_loss + inverse_model_loss)
+        elif self.l1_penalty > 0:
+            total_loss = (forward_model_loss + multiplier * self.l1_penalty * l1_loss + inverse_model_loss)
         else:
-            total_loss = (forward_model_loss + l1_loss + inverse_model_loss)
+            total_loss = (forward_model_loss + inverse_model_loss)
 
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
+
         # mean_element_magnitude = torch.abs(o_encoded).float().mean().detach().item()
         ret = {
             "inverse_loss": inverse_model_loss.detach().item(),
-            "l1_loss": l1_loss.detach().item(),
-            "l2_loss": l2_loss.detach().item(),
-            "mean_encoded_magnitude": pre_penalized_l1_loss,  # purely for debugging and logging
+            "l1_loss": l1_loss.detach().item() if self.l1_penalty > 0 else 0,
+            "l2_loss": l2_loss.detach().item() if self.l2_penalty > 0 else 0,
+            # "mean_encoded_magnitude": pre_penalized_l1_loss,  # purely for debugging and logging
             # for pre-penalized loss, expect lower l1 values to result in higher pre-penalty
             # aka: 0.01 should have a LOWER pre-penalty
             # aka: 0.0001 should have a HIGHER pre-penalty
             "loss": total_loss.detach().item(),
             "accuracy": accuracy.detach().item(),
-            "cur_l1_penalty": cur_l1_penalty,
-            # "mean_element_magnitude": mean_element_magnitude,
-            # "mean_representation_magnitude": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
+            "cur_regularization_penalty": multiplier,
+
         }
         self.last_ret = ret
         return ret
