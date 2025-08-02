@@ -14,7 +14,7 @@ os.environ['MUJOCO_GL'] = 'egl'
 TASK = 'point_mass_maze_reach_top_left'
 DISCRETE = True
 BUFFER_DIR = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/buffer')
-OUT_PATH = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/all_eps__eplen.hdf5')
+OUT_PATH = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_with_eplen.hdf5')
 IMG_H, IMG_W = 64, 64
 
 
