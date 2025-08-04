@@ -1,13 +1,6 @@
-# Unused imports were commented out
-# import json
 import os
-# import shutil
-# import sys
-# from argparse import ArgumentParser
-# from collections import deque
 import h5py
 import tqdm
-# from matplotlib import cm
 import torch
 import numpy as np
 import wandb
@@ -17,9 +10,7 @@ import hydra
 
 from torch.utils.data import Dataset, DataLoader
 
-# import torch.nn.functional as F
 import random
-# from environments.nav2d.utils import perturb_heatmap
 import datetime
 from representations.acro import Acro
 from representations.single_step import SingleStep
@@ -58,23 +49,25 @@ def load_dataset(dataset_path):
 
 class PointMazeDataset(Dataset):
     def __init__(self, wrappers):
-        # wrappers is the dict {"obs": obs_wrap, "obs_next": next_wrap, "action": act_wrap}
         self.obs = wrappers["obs"]
         self.obs_next = wrappers["obs_next"]
         self.act = wrappers["action"]
+
     def __len__(self):
         return len(self.obs)
+
     def __getitem__(self, idx):
-        # h5 wrappers return numpy -> torch will auto‑convert if collate_fn is default
-        return ( self.obs[idx], 
-                 self.obs_next[idx], 
-                 self.act[idx].squeeze()  # to get shape (,) instead of (1,)
-               )
+        return (
+            self.obs[idx],
+            self.obs_next[idx],
+            self.act[idx].squeeze(),
+        )  # squeeze to get shape (,) instead of (1,)
 
 
 class H5StackedObsWrapper:
     """Given a base image dataset and precomputed per-sample K indices,
        returns stacked frames [t-K+1 ... t] concatenated along channel."""
+
     def __init__(self, ds: h5py.Dataset, stack_indices: np.ndarray):
         # stack_indices: shape (N, K) of integer indices into ds
         self.ds = ds
@@ -84,15 +77,14 @@ class H5StackedObsWrapper:
         return len(self.stack_indices)
 
     def __getitem__(self, idx):
-        # frames: (K, H, W, C)
-        frames = self.ds[self.stack_indices[idx]]
-        # concatenate along channel last -> (H, W, C * K)
-        return np.concatenate(list(frames), axis=2)
+        frames = self.ds[self.stack_indices[idx]]  # (K, H, W, C)
+        return np.concatenate(list(frames), axis=2)  # (H, W, C * K)
 
 
 class H5SliceWrapper:
     """Wrap a h5py Dataset + a valid‐index array so that
        wrapper[idx] → ds[valid_indices[idx]] without preloading."""
+
     def __init__(self, ds: h5py.Dataset, valid_idx: np.ndarray):
         print("Creating wrapper...")
         self.ds = ds
@@ -107,7 +99,11 @@ class H5SliceWrapper:
         return self.ds[self.valid[idx]]
 
 
-def load_pointmaze_dataset(dataset_path, obs_buffer_size=3, max_transitions=None):
+def load_pointmaze_dataset(
+    dataset_path,
+    obs_buffer_size=3,
+    max_transitions=None,
+):
     """
     Lazily open the PointMaze HDF5 and return three H5SliceWrapper objects
     for obs, obs_next, action so that data[k] only pulls those frames.
@@ -185,7 +181,6 @@ def create_models(cfg: DictConfig, obs_shape, act_shape):
             cfg=cfg
         )
         models[model_name] = model
-        continue # HACK: Fix this....
         evaluators[model_name] = Evaluators(
             obs_shape=obs_shape,
             act_shape=act_shape,
@@ -209,9 +204,15 @@ def log_to_wandb(cfg, evaluators, logs, samples, train_step):
             for key, value in algo_log.items()
         }
         wandb.log(labeled_logs, step=train_step)
+
     if train_step % cfg.img_log_freq == 0:
         for model_name, evaluator in evaluators.items():
-            imgs = evaluator.eval_imgs(samples)
+            if (cfg.env=='nav2d'):
+                imgs = evaluator.eval_imgs(samples)
+            elif (cfg.env=='pointmaze'):
+                continue
+            else:
+                continue
             wandb_imgs_log = {
                 f"{model_name}/{key}": img
                 for key, img in imgs.items()
@@ -219,78 +220,14 @@ def log_to_wandb(cfg, evaluators, logs, samples, train_step):
             wandb.log(wandb_imgs_log, step=train_step)
 
 
-@hydra.main(version_base=None, config_path="configs", config_name="config")
-def main(cfg: DictConfig):
-    cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    wandb_name = None
-    if cfg.wandb:
-        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        name = f"{cfg.name}_{cur_date_time}"
-        # name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
-        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
-        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
-        wandb.init(
-            entity=cfg.wandb_entity,
-            project="nav2d",
-            # group="ms_acro_grd_30_obstcls_100",
-            name=name,
-            config=OmegaConf.to_container(cfg)
-        )
-
-        wandb_name = wandb.run.name
-        print("NOW RUNNING:", wandb_name)
-
-    random.seed(cfg.seed)
-    torch.manual_seed(cfg.seed)
-
-    models, evaluators = None, None
-
-    train_step = 0
-    first_dataset = True
-    for dataset_file in cfg.datasets:
-        print(f"LOADING {dataset_file}...")
-        wrappers, obs_shape, act_shape = load_pointmaze_dataset(
-            dataset_file,
-            obs_buffer_size=cfg.obs_buffer_size,
-            max_transitions=1_500_000
-        )
-
-        dataset = PointMazeDataset(wrappers)
-        print(f"FINISHED LOADING {dataset_file}")
-
-        if first_dataset:
-            models, evaluators = create_models(cfg, obs_shape, act_shape)
-            print("Evaluators", evaluators.keys())
-            models = initialize_dependant_models(models)
-            first_dataset = False
-
-        loader = DataLoader(
-            dataset,
-            batch_size=cfg.batch_size,
-            shuffle=True,
-            num_workers=8,
-            pin_memory=True,
-        )
-
-        train_step, save_paths, log_name = train(
-            cfg,
-            loader,
-            models,
-            evaluators,
-            train_step,
-            wandb_name,
-            cur_date_time
-        )
-        dataset = None
-
+def run_downstream_rl(cfg: DictConfig, save_paths, log_name, n_seeds=2):
+    # DOWNSTREAM RL
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
         wandb.finish()
         grid = 15
         num_obs = 20
         total_timesteps = 600000  # default is 1 mil
-        # seeds = list(range(2))
-        seeds = []
+        seeds = list(range(n_seeds))
 
         if (cfg.eval_encoder == "single_step") or (cfg.eval_encoder == "acro"):
             penalty = cfg.algos.acro.l1_penalty if (cfg.eval_encoder == "acro") else cfg.algos.single_step.l1_penalty
@@ -331,6 +268,77 @@ def main(cfg: DictConfig):
                 )
 
 
+@hydra.main(version_base=None, config_path="configs", config_name="config")
+def main(cfg: DictConfig):
+    cur_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    wandb_name = None
+    if cfg.wandb:
+        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
+        name = f"{cfg.name}_{cur_date_time}"
+        # name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
+        wandb.init(
+            entity=cfg.wandb_entity,
+            project="nav2d",
+            name=name,
+            config=OmegaConf.to_container(cfg)
+        )
+
+        wandb_name = wandb.run.name
+        print("NOW RUNNING:", wandb_name)
+
+    random.seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
+
+    models, evaluators = None, None
+
+    train_step = 0
+    first_dataset = True
+
+    for dataset_file in cfg.datasets:
+        # LOAD DATSET AND DATALOADER
+        print(f"LOADING {dataset_file}...")
+        wrappers, obs_shape, act_shape = load_pointmaze_dataset(
+            dataset_file,
+            obs_buffer_size=cfg.obs_buffer_size,
+            max_transitions=1_500_000
+        )
+
+        dataset = PointMazeDataset(wrappers)
+
+        loader = DataLoader(
+            dataset,
+            batch_size=cfg.batch_size,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True,
+        )
+
+        print(f"FINISHED LOADING {dataset_file}")
+
+        if first_dataset:
+            # CREATE MODELS AND EVALUATORS
+            models, evaluators = create_models(cfg, obs_shape, act_shape)
+            print("Evaluators", evaluators.keys())
+            models = initialize_dependant_models(models)
+            first_dataset = False
+
+        train_step, save_paths, log_name = train(
+            cfg,
+            loader,
+            models,
+            evaluators,
+            train_step,
+            wandb_name,
+            cur_date_time
+        )
+        dataset = None
+
+    run_downstream_rl(cfg, save_paths, log_name)
+
+
 def train(
     cfg: DictConfig,
     loader: DataLoader,
@@ -340,29 +348,28 @@ def train(
     wandb_name,
     cur_date_time
 ):
-    # dataset_keys = list(dataset.keys())
     wandb_logs = {key: {} for key in models.keys()}
 
     for epoch in range(cfg.n_epochs):
         for batch in tqdm.tqdm(loader, desc=f"Epoch #{epoch}"):
-            # batch is a tuple: (obs_np, obs_next_np, act_np)
             obs_np, obs_next_np, act_np = batch
 
-            # 2) Transfer to GPU (non_blocking because pin_memory=True)
-            obs      = obs_np.cuda(non_blocking=True)
+            # Transfer to GPU (non_blocking because pin_memory=True)
+            obs = obs_np.cuda(non_blocking=True)
             obs_next = obs_next_np.cuda(non_blocking=True)
-            action   = act_np.cuda(non_blocking=True).long()
+            action = act_np.cuda(non_blocking=True).long()
 
-            samples = {
-                "obs":      obs,
-                "obs_next": obs_next,
-                "action":   action,
-            }
+            samples = {"obs": obs, "obs_next": obs_next, "action": action}
 
-            # 3) Run your step
             for name, model in models.items():
                 logs = model.train_step(samples, epoch, train_step)
                 wandb_logs[name].update(logs)
+
+            # train the evaluators if needed
+            if cfg.train_evaluators:
+                for model_name, evaluator in evaluators.items():
+                    log = evaluator.train_step(samples, epoch, train_step)
+                    wandb_logs[model_name].update(log)
 
             if cfg.wandb:
                 log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)

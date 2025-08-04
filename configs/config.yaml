@@ -32,9 +32,10 @@ n_epochs: 20
 batch_size: 256
 met_log_freq: 10
 img_log_freq: 1000
-obs_buffer_size: 4 # how many obs in buffer total (cur + K-1 prev)
+obs_buffer_size: 4  # how many obs in buffer total (cur + K-1 prev)
 train_evaluators: True
 eval_encoder: ''
+env: 'nav2d' # can also be 'pointmaze'
 defaults:
   - algos: single_step
   - algos/evaluators@evaluators
