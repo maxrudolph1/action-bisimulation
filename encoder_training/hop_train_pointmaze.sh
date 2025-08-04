@@ -1,4 +1,4 @@
-python main.py algos='[single_step]' name='ss_pointmaze_l2_0001_swps' n_epochs=1 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
+# python main.py algos='[single_step]' name='ss_pointmaze_l2_0001_swps' n_epochs=1 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
 # python main.py algos='[single_step]' name='ss_pointmaze_l2_0002_swps' n_epochs=1 algos.single_step.l2_penalty=0.0002 algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
 # python main.py algos='[single_step]' name='ss_pointmaze_l2_0005_swps' n_epochs=1 algos.single_step.l2_penalty=0.0005 algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
 # python main.py algos='[single_step]' name='ss_pointmaze_l2_001_swps'  n_epochs=1 algos.single_step.l2_penalty=0.001  algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
@@ -8,3 +8,8 @@ python main.py algos='[single_step]' name='ss_pointmaze_l2_0001_swps' n_epochs=1
 # python main.py algos='[single_step]' name='ss_pointmaze_l2_02_swps'   n_epochs=1 algos.single_step.l2_penalty=0.02   algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
 # python main.py algos='[single_step]' name='ss_pointmaze_l2_05_swps'   n_epochs=1 algos.single_step.l2_penalty=0.05   algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
 # python main.py algos='[single_step]' name='ss_pointmaze_l2_1_swps'    n_epochs=1 algos.single_step.l2_penalty=0.1    algos.single_step.use_l2_norm=True algos.single_step.dynamic_l1_penalty=False algos.single_step.train_stop_epochs=300 wandb=True train_evaluators=False eval_encoder=''
+
+
+python main.py algos='[single_step]' name='pointmaze_testing_sandbox' wandb=True \
+	n_epochs=1 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
+	algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder=''

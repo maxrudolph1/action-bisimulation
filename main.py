@@ -72,6 +72,24 @@ class PointMazeDataset(Dataset):
                )
 
 
+class H5StackedObsWrapper:
+    """Given a base image dataset and precomputed per-sample K indices,
+       returns stacked frames [t-K+1 ... t] concatenated along channel."""
+    def __init__(self, ds: h5py.Dataset, stack_indices: np.ndarray):
+        # stack_indices: shape (N, K) of integer indices into ds
+        self.ds = ds
+        self.stack_indices = stack_indices  # dtype should be integer
+
+    def __len__(self):
+        return len(self.stack_indices)
+
+    def __getitem__(self, idx):
+        # frames: (K, H, W, C)
+        frames = self.ds[self.stack_indices[idx]]
+        # concatenate along channel last -> (H, W, C * K)
+        return np.concatenate(list(frames), axis=2)
+
+
 class H5SliceWrapper:
     """Wrap a h5py Dataset + a valid‐index array so that
        wrapper[idx] → ds[valid_indices[idx]] without preloading."""
@@ -89,38 +107,61 @@ class H5SliceWrapper:
         return self.ds[self.valid[idx]]
 
 
-def load_pointmaze_dataset(dataset_path, boundary=1000, max_transitions=None):
+def load_pointmaze_dataset(dataset_path, obs_buffer_size=3, max_transitions=None):
     """
     Lazily open the PointMaze HDF5 and return three H5SliceWrapper objects
     for obs, obs_next, action so that data[k] only pulls those frames.
     """
+
     print(f"[PointMaze] opening {dataset_path!r}", flush=True)
     f = h5py.File(dataset_path, 'r')
     imgs = f['images'] # shape (T, H, W, 3)
     acts = f['action'] # shape (T, 1)
-    # ep_lens = f['episode_lengths'][:]
+    ep_lens = f['episode_lengths'][:]
 
     T = imgs.shape[0]
-    print(f"[PointMaze] dataset has {T} frames, boundary={boundary}", flush=True)
+    print(f"[PointMaze] dataset has {T} frames, using obs buffer size of {obs_buffer_size}", flush=True)
 
-    all_steps = np.arange(T - 1, dtype=np.int64)
-    invalid = (np.arange(boundary - 1, T, boundary, dtype=np.int64))
-    valid   = np.setdiff1d(all_steps, invalid, assume_unique=True)
+    starts = np.empty_like(ep_lens, dtype=np.int64)
+    starts[0] = 0
+    if len(ep_lens) > 1:
+        starts[1:] = np.cumsum(ep_lens[:-1])
+
+    valid_t = []
+    for start, length in zip(starts, ep_lens):
+        for t_in_ep in range(obs_buffer_size - 1, length - 1):
+            global_t = start + t_in_ep
+            valid_t.append(global_t)
+    valid_t = np.array(valid_t, dtype=np.int64)
 
     if max_transitions is not None:
-        valid = valid[:max_transitions]
-        print(f"[PointMaze] truncating to first {len(valid)} transitions", flush=True)
+        valid_t = valid_t[:max_transitions]
+        print(f"[PointMaze] truncating to first {len(valid_t)} transitions", flush=True)
     else:
-        print(f"[PointMaze] keeping {len(valid)}/{T-1} transitions", flush=True)
+        print(f"[PointMaze] keeping {len(valid_t)}/{T-1} transitions", flush=True)
 
-    # build three wrappers
-    obs = H5SliceWrapper(imgs, valid)
-    obs_next = H5SliceWrapper(imgs, valid + 1)
-    action = H5SliceWrapper(acts, valid)
+    # Build stacked obs indices: for each valid_t = v, we need [v - (K-1), ..., v]
+    K = obs_buffer_size
+    if K < 1:
+        raise ValueError("obs_buffer_size must be >=1")
+    offsets = np.arange(K)[::-1]  # e.g. K=3 -> [2,1,0]; v - offsets = [v-2, v-1, v]
+    obs_stack_indices = valid_t[:, None] - offsets[None, :]  # shape (N, K)
+
+    # stacked next observations (slid forward by one)
+    next_center = valid_t + 1  # t+1
+    obs_next_stack_indices = next_center[:, None] - offsets[None, :]  # shape (N, K)
+
+    obs = H5StackedObsWrapper(imgs, obs_stack_indices)
+    obs_next = H5StackedObsWrapper(imgs, obs_next_stack_indices)
+    action = H5SliceWrapper(acts, valid_t)
+
     print("[PointMaze] built wrappers")
 
-    obs_shape = imgs.shape[1:] # (H, W, 3)
-    print("Obs shape:", obs_shape)
+    # compute obs_shape after stacking: original imgs shape is (T, H, W, C)
+    h, w, c = imgs.shape[1:]
+    stacked_obs_shape = (h, w, c * obs_buffer_size)
+    print("Obs shape (stacked):", stacked_obs_shape)
+
     DISCRETE = True
     if DISCRETE:
         act_shape = 9 # FIXME: Make sure this is the correct formatting
@@ -128,7 +169,7 @@ def load_pointmaze_dataset(dataset_path, boundary=1000, max_transitions=None):
         act_shape = acts.shape[1]
     print("Action shape:", act_shape)
 
-    return {"obs": obs, "obs_next": obs_next, "action": action}, obs_shape, act_shape
+    return {"obs": obs, "obs_next": obs_next, "action": action}, stacked_obs_shape, act_shape
 
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):
@@ -209,8 +250,12 @@ def main(cfg: DictConfig):
     first_dataset = True
     for dataset_file in cfg.datasets:
         print(f"LOADING {dataset_file}...")
-        # dataset, obs_shape, act_shape = load_dataset(dataset_file)
-        wrappers, obs_shape, act_shape = load_pointmaze_dataset(dataset_file, max_transitions=1500000)
+        wrappers, obs_shape, act_shape = load_pointmaze_dataset(
+            dataset_file,
+            obs_buffer_size=cfg.obs_buffer_size,
+            max_transitions=1_500_000
+        )
+
         dataset = PointMazeDataset(wrappers)
         print(f"FINISHED LOADING {dataset_file}")
 
@@ -224,7 +269,7 @@ def main(cfg: DictConfig):
             dataset,
             batch_size=cfg.batch_size,
             shuffle=True,
-            num_workers=8,       # adjust to your machine
+            num_workers=8,
             pin_memory=True,
         )
 
@@ -241,8 +286,6 @@ def main(cfg: DictConfig):
 
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
         wandb.finish()
-        # grid = 30
-        # num_obs = 100
         grid = 15
         num_obs = 20
         total_timesteps = 600000  # default is 1 mil
@@ -325,40 +368,6 @@ def train(
                 log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
 
             train_step += 1
-
-    # for epoch in range(cfg.n_epochs):
-    #     sample_ind_all = np.random.permutation(len(dataset["obs"]))
-    #     # sample_ind_next = np.random.permutation(len(dataset["obs"]))
-    #     steps_per_epoch = -(len(sample_ind_all) // -cfg.batch_size)
-    #
-    #     for i in tqdm.tqdm(range(steps_per_epoch), desc=f"Epoch #{epoch}"):
-    #         start = i * cfg.batch_size
-    #         end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
-    #         sample_ind = np.sort(sample_ind_all[start:end])
-    #         samples = {key: dataset[key][sample_ind] for key in dataset_keys}
-    #
-    #         # train the representation models
-    #         for model_name, model in models.items():
-    #             log = model.train_step(samples, epoch, train_step)
-    #             wandb_logs[model_name].update(log)
-    #
-    #         # train the evaluator models if needed
-    #         if cfg.train_evaluators:
-    #             for model_name, evaluator in evaluators.items():
-    #                 log = evaluator.train_step(samples, epoch, train_step)
-    #                 wandb_logs[model_name].update(log)
-    #
-    #         if cfg.wandb:
-    #             log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
-    #
-    #         train_step += 1
-
-    # time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    # logdir = os.path.join(cfg.logdir, time_str)
-    #
-    # os.makedirs(logdir)
-    # for model_name, model in models.items():
-    #     model.save(logdir + f"/{model_name}.pt")
 
     log_name = ((wandb_name + "_") if wandb_name is not None else cur_date_time) + ("ts_" + str(train_step))
     logdir = os.path.join(cfg.logdir, log_name)
