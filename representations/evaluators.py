@@ -3,6 +3,9 @@
 import numpy as np
 import torch.nn
 # from matplotlib import cm
+import matplotlib.pyplot as plt
+
+from sklearn.manifold import TSNE
 
 # from models import nets
 from models import gen_model_nets
@@ -137,6 +140,47 @@ class Evaluators():
         disp_obs = np.swapaxes(samples["obs"][0], 0, 2)
         reconstruction = wandb.Image(np.concatenate([np.swapaxes(obs_recon, 0, 2), disp_obs], axis=1))
         return {"reconstruction": reconstruction, "heatmap": heatmap}
+
+    def eval_plan2vec_figure5(self, samples):
+        B = samples["obs"].shape[0]
+        N = min(1024, B)
+        idxs = np.random.choice(B, size=N, replace=False)
+        obs_batch  = samples["obs"][idxs].detach().cpu()
+        phys_batch = samples["physics"][idxs].detach().cpu().numpy()
+
+        obs_norm = (obs_batch.float() / 127.5) - 1.0
+
+        with torch.no_grad():
+            Z = self.model.encoder(obs_norm.cuda()).cpu().numpy()  # (N, D)
+
+        print("Min/max/mean of Z:", Z.min(), Z.max(), Z.mean())
+
+        Z2 = TSNE(n_components=2, init="pca", perplexity=30, max_iter=1000,
+                  random_state=0).fit_transform(Z)
+
+        # Normalize true positions to [0,1]
+        xy = phys_batch[:, :2].copy()
+        min_xy = xy.min(axis=0, keepdims=True)
+        max_xy = xy.max(axis=0, keepdims=True)
+        xy = (xy - min_xy) / (max_xy - min_xy + 1e-8)
+
+        # Build RGB
+        rgb = np.zeros((N, 3), dtype=np.float32)
+        rgb[:, 0] = xy[:, 0]
+        rgb[:, 1] = xy[:, 1]
+
+        fig, (ax_tsne, ax_gt) = plt.subplots(1, 2, figsize=(8,4), dpi=100)
+        ax_tsne.scatter(Z2[:,0], Z2[:,1], c=rgb, s=6, alpha=0.8)
+        ax_tsne.set_title("TSNE: Encoded Latents")
+        ax_tsne.set_xticks([]); ax_tsne.set_yticks([])
+
+        ax_gt.scatter(xy[:,0], xy[:,1], c=rgb, s=6, alpha=0.8)
+        ax_gt.set_title("Ground Truth (x,y)")
+        ax_gt.set_xticks([]); ax_gt.set_yticks([])
+
+        plt.tight_layout()
+        return {"plan2vec_tsne_gt": wandb.Image(fig)}
+
 
     def save(self, path):
         pass

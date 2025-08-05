@@ -21,7 +21,6 @@ from representations.info_nce import NCE
 
 from call_rl_main import call_rl
 
-
 MODEL_DICT = {'single_step': SingleStep,
               'multi_step': MultiStep,
               'bvae': BetaVariationalAutoencoder,
@@ -52,6 +51,7 @@ class PointMazeDataset(Dataset):
         self.obs = wrappers["obs"]
         self.obs_next = wrappers["obs_next"]
         self.act = wrappers["action"]
+        self.physics = wrappers["physics"]
 
     def __len__(self):
         return len(self.obs)
@@ -61,6 +61,7 @@ class PointMazeDataset(Dataset):
             self.obs[idx],
             self.obs_next[idx],
             self.act[idx].squeeze(),
+            self.physics[idx],
         )  # squeeze to get shape (,) instead of (1,)
 
 
@@ -113,6 +114,7 @@ def load_pointmaze_dataset(
     f = h5py.File(dataset_path, 'r')
     imgs = f['images'] # shape (T, H, W, 3)
     acts = f['action'] # shape (T, 1)
+    physics = f['physics'] # shape (T, 4)
     ep_lens = f['episode_lengths'][:]
 
     T = imgs.shape[0]
@@ -150,6 +152,7 @@ def load_pointmaze_dataset(
     obs = H5StackedObsWrapper(imgs, obs_stack_indices)
     obs_next = H5StackedObsWrapper(imgs, obs_next_stack_indices)
     action = H5SliceWrapper(acts, valid_t)
+    physics = H5SliceWrapper(physics, valid_t)
 
     print("[PointMaze] built wrappers")
 
@@ -165,7 +168,7 @@ def load_pointmaze_dataset(
         act_shape = acts.shape[1]
     print("Action shape:", act_shape)
 
-    return {"obs": obs, "obs_next": obs_next, "action": action}, stacked_obs_shape, act_shape
+    return {"obs": obs, "obs_next": obs_next, "action": action, "physics": physics}, stacked_obs_shape, act_shape
 
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):
@@ -210,9 +213,10 @@ def log_to_wandb(cfg, evaluators, logs, samples, train_step):
             if (cfg.env=='nav2d'):
                 imgs = evaluator.eval_imgs(samples)
             elif (cfg.env=='pointmaze'):
-                continue
+                imgs = evaluator.eval_plan2vec_figure5(samples)
             else:
                 continue
+
             wandb_imgs_log = {
                 f"{model_name}/{key}": img
                 for key, img in imgs.items()
@@ -352,14 +356,20 @@ def train(
 
     for epoch in range(cfg.n_epochs):
         for batch in tqdm.tqdm(loader, desc=f"Epoch #{epoch}"):
-            obs_np, obs_next_np, act_np = batch
+            if (cfg.env == 'pointmaze'):
+                obs_np, obs_next_np, act_np, phys_np = batch
+            else:
+                obs_np, obs_next_np, act_np = batch
 
             # Transfer to GPU (non_blocking because pin_memory=True)
             obs = obs_np.cuda(non_blocking=True)
             obs_next = obs_next_np.cuda(non_blocking=True)
             action = act_np.cuda(non_blocking=True).long()
 
-            samples = {"obs": obs, "obs_next": obs_next, "action": action}
+            if (cfg.env == 'pointmaze'):
+                samples = {"obs": obs, "obs_next": obs_next, "action": action, "physics": phys_np}
+            else:
+                samples = {"obs": obs, "obs_next": obs_next, "action": action}
 
             for name, model in models.items():
                 logs = model.train_step(samples, epoch, train_step)
