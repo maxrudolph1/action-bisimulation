@@ -46,6 +46,31 @@ def load_dataset(dataset_path):
     return dataset, obs_shape, act_shape
 
 
+def compute_action_hist_h5(action_wrapper, num_actions, chunk=200_000):
+    """Stream counts from HDF5 efficiently using the wrapper's valid index."""
+    valid = action_wrapper.valid
+    ds = action_wrapper.ds
+    counts = np.zeros(num_actions, dtype=np.int64)
+    n = len(valid)
+    for i in range(0, n, chunk):
+        idx = valid[i:i+chunk]
+        arr = ds[idx]               # shape (chunk, 1)
+        arr = np.asarray(arr).reshape(-1)
+        counts += np.bincount(arr, minlength=num_actions)
+    return counts
+
+def class_weights_from_counts(counts, method="effective", beta=0.9999):
+    c = torch.tensor(counts, dtype=torch.float32)
+    if method == "inverse":
+        w = 1.0 / c.clamp_min(1.0)
+    elif method == "sqrt_inv":
+        w = 1.0 / c.clamp_min(1.0).sqrt()
+    else:  # "effective" (Cui et al.)
+        eff = (1.0 - beta**c) / (1.0 - beta)
+        w = 1.0 / eff
+    # normalize so mean weight ≈ 1 (keeps loss scale stable)
+    return w * (len(c) / w.sum())
+
 class PointMazeDataset(Dataset):
     def __init__(self, wrappers):
         self.obs = wrappers["obs"]
@@ -322,12 +347,62 @@ def main(cfg: DictConfig):
 
         print(f"FINISHED LOADING {dataset_file}")
 
+        # # Ground-truth action distribution
+        # gt_counts = compute_action_hist_h5(wrappers["action"], act_shape)
+        # gt_fracs = gt_counts / max(gt_counts.sum(), 1)
+        #
+        # print(f"[GT actions] {os.path.basename(dataset_file)} counts: {gt_counts.tolist()}")
+        # print(f"[GT actions] {os.path.basename(dataset_file)} fracs : {gt_fracs.tolist()}")
+        #
+        # if cfg.wandb:
+        #     import wandb as _wandb
+        #     table = _wandb.Table(
+        #         data=[[int(i), int(gt_counts[i]), float(gt_fracs[i])] for i in range(act_shape)],
+        #         columns=["action", "count", "fraction"],
+        #     )
+        #     _wandb.log({f"dataset/{os.path.basename(dataset_file)}/gt_action_dist": table}, step=train_step)
+
+        # ------- A) Ground-truth action distribution (per dataset) -------
+        gt_counts = compute_action_hist_h5(wrappers["action"], act_shape)
+        gt_fracs = gt_counts / max(gt_counts.sum(), 1)
+
+        print(f"[GT actions] {os.path.basename(dataset_file)} counts: {gt_counts.tolist()}")
+        print(f"[GT actions] {os.path.basename(dataset_file)} fracs : {gt_fracs.tolist()}")
+
+        if cfg.wandb:
+            import wandb as _wandb
+            ds_name = os.path.basename(dataset_file)
+
+            # Table (keep)
+            rows = [[str(i), int(gt_counts[i]), float(gt_fracs[i])] for i in range(act_shape)]
+            table = _wandb.Table(data=rows, columns=["action", "count", "fraction"])
+
+            # Log the table and then 2 bar charts to the same step
+            _wandb.log({f"dataset/{ds_name}/gt_action_dist_table": table},
+                       step=train_step, commit=False)
+
+            # Bar charts (counts + fractions) derived from the table
+            bar_counts = _wandb.plot.bar(table, "action", "count",
+                                         title=f"{ds_name}: GT action counts")
+            bar_fracs  = _wandb.plot.bar(table, "action", "fraction",
+                                         title=f"{ds_name}: GT action fractions")
+
+            _wandb.log({
+                f"dataset/{ds_name}/gt_action_counts_bar": bar_counts,
+                f"dataset/{ds_name}/gt_action_fractions_bar": bar_fracs,
+            }, step=train_step)
+
         if first_dataset:
             # CREATE MODELS AND EVALUATORS
             models, evaluators = create_models(cfg, obs_shape, act_shape)
             print("Evaluators", evaluators.keys())
             models = initialize_dependant_models(models)
             first_dataset = False
+
+        ce_weights = class_weights_from_counts(gt_counts, method="effective")
+        for name, m in models.items():
+            if hasattr(m, "set_class_weights"):
+                m.set_class_weights(ce_weights)
 
         train_step, save_paths, log_name = train(
             cfg,

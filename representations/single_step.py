@@ -14,6 +14,9 @@ from . import utils
 
 
 class SingleStep(torch.nn.Module):
+    def set_class_weights(self, w: torch.Tensor):
+        self.ce_weight = w.to("cuda")
+
     def __init__(
         self, obs_shape, act_shape, cfg,
     ):
@@ -21,6 +24,8 @@ class SingleStep(torch.nn.Module):
         encoder_cfg = cfg.algos.single_step.encoder
         forward_cfg = cfg.algos.single_step.forward
         inverse_cfg = cfg.algos.single_step.inverse
+
+        self.ce_weight = None
 
         self.l2_penalty = cfg.algos.single_step.l2_penalty
         self.use_l2_norm = cfg.algos.single_step.use_l2_norm
@@ -92,10 +97,19 @@ class SingleStep(torch.nn.Module):
             l1_loss = torch.zeros(1, device="cuda")
 
         inverse_model_pred = self.inverse_model(o_encoded, on_encoded)
-        inverse_model_loss = F.cross_entropy(
-            inverse_model_pred,
-            act,
-        )
+        inverse_model_loss = F.cross_entropy(inverse_model_pred, act, weight=self.ce_weight)
+
+        with torch.no_grad():
+            probs = inverse_model_pred.softmax(dim=1)
+            top1 = probs.argmax(dim=1)
+
+            num_actions = probs.shape[1]
+            label_hist = torch.bincount(act, minlength=num_actions).to(torch.float32)
+            pred_hist  = torch.bincount(top1, minlength=num_actions).to(torch.float32)
+
+            avg_conf = probs.max(dim=1).values.mean()
+            pred_entropy = (-probs.clamp_min(1e-12).log() * probs).sum(dim=1).mean()
+
 
         accuracy = torch.mean(
             (torch.argmax(inverse_model_pred, dim=1) == act).float()
@@ -126,20 +140,31 @@ class SingleStep(torch.nn.Module):
         total_loss.backward()
         self.optimizer.step()
         # mean_element_magnitude = torch.abs(o_encoded).float().mean().detach().item()
+
+        l2_loss_val = 0.0
+        if self.use_l2_norm:
+            l2_loss_val = l2_loss.detach().item()
+
         ret = {
             "inverse_loss": inverse_model_loss.detach().item(),
-            "l1_loss": l1_loss.detach().item(),
-            "l2_loss": l2_loss.detach().item(),
+            "l1_loss": float(l1_loss.detach().item()) if not self.use_l2_norm else 0.0,
+            "l2_loss": l2_loss_val,
             "mean_encoded_magnitude": pre_penalized_l1_loss,  # purely for debugging and logging
             # for pre-penalized loss, expect lower l1 values to result in higher pre-penalty
             # aka: 0.01 should have a LOWER pre-penalty
             # aka: 0.0001 should have a HIGHER pre-penalty
             "loss": total_loss.detach().item(),
-            "accuracy": accuracy.detach().item(),
+            "accuracy": torch.mean((top1 == act).float()).item(),
             "cur_l1_penalty": cur_l1_penalty,
+
+            "avg_conf": avg_conf.item(),
+            "pred_entropy": pred_entropy.item(),
+            "label_hist": label_hist.cpu(),
+            "pred_hist": pred_hist.cpu(),
             # "mean_element_magnitude": mean_element_magnitude,
             # "mean_representation_magnitude": torch.linalg.vector_norm(o_encoded, ord=1, dim=1).mean().detach().item(),
         }
+
         self.last_ret = ret
         return ret
 
