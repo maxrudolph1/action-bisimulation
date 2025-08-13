@@ -46,17 +46,28 @@ def load_dataset(dataset_path):
     return dataset, obs_shape, act_shape
 
 
-def compute_action_hist_h5(action_wrapper, num_actions, chunk=200_000):
-    """Stream counts from HDF5 efficiently using the wrapper's valid index."""
+# def compute_action_hist_h5(action_wrapper, num_actions, chunk=200_000):
+#     """Stream counts from HDF5 efficiently using the wrapper's valid index."""
+#     valid = action_wrapper.valid
+#     ds = action_wrapper.ds
+#     counts = np.zeros(num_actions, dtype=np.int64)
+#     n = len(valid)
+#     for i in range(0, n, chunk):
+#         idx = valid[i:i+chunk]
+#         arr = ds[idx]               # shape (chunk, 1)
+#         arr = np.asarray(arr).reshape(-1)
+#         counts += np.bincount(arr, minlength=num_actions)
+#     return counts
+
+def compute_action_hist_h5(action_wrapper, num_actions):
+    """Compute counts for action_wrapper.valid without h5py fancy indexing."""
     valid = action_wrapper.valid
     ds = action_wrapper.ds
-    counts = np.zeros(num_actions, dtype=np.int64)
-    n = len(valid)
-    for i in range(0, n, chunk):
-        idx = valid[i:i+chunk]
-        arr = ds[idx]               # shape (chunk, 1)
-        arr = np.asarray(arr).reshape(-1)
-        counts += np.bincount(arr, minlength=num_actions)
+
+    # one contiguous read from HDF5; ~40MB
+    acts_all = np.asarray(ds[:]).reshape(-1)   # (T,)
+    labels = acts_all[valid]
+    counts = np.bincount(labels, minlength=num_actions)
     return counts
 
 def class_weights_from_counts(counts, method="effective", beta=0.9999):
@@ -129,6 +140,7 @@ def load_pointmaze_dataset(
     dataset_path,
     obs_buffer_size=3,
     max_transitions=None,
+    valid_t_override=None,
 ):
     """
     Lazily open the PointMaze HDF5 and return three H5SliceWrapper objects
@@ -150,18 +162,37 @@ def load_pointmaze_dataset(
     if len(ep_lens) > 1:
         starts[1:] = np.cumsum(ep_lens[:-1])
 
-    valid_t = []
-    for start, length in zip(starts, ep_lens):
-        for t_in_ep in range(obs_buffer_size - 1, length - 1):
-            global_t = start + t_in_ep
-            valid_t.append(global_t)
-    valid_t = np.array(valid_t, dtype=np.int64)
+    # valid_t = []
+    # for start, length in zip(starts, ep_lens):
+    #     for t_in_ep in range(obs_buffer_size - 1, length - 1):
+    #         global_t = start + t_in_ep
+    #         valid_t.append(global_t)
+    # valid_t = np.array(valid_t, dtype=np.int64)
 
-    if max_transitions is not None:
+    if valid_t_override is None:
+        starts = np.empty_like(ep_lens, dtype=np.int64)
+        starts[0] = 0
+        if len(ep_lens) > 1:
+            starts[1:] = np.cumsum(ep_lens[:-1])
+        valid_t = []
+        for start, length in zip(starts, ep_lens):
+            for t_in_ep in range(obs_buffer_size - 1, length - 1):
+                valid_t.append(start + t_in_ep)
+        valid_t = np.array(valid_t, dtype=np.int64)
+    else:
+        valid_t = np.array(valid_t_override, dtype=np.int64)
+
+    if max_transitions is not None and valid_t_override is None:
         valid_t = valid_t[:max_transitions]
         print(f"[PointMaze] truncating to first {len(valid_t)} transitions", flush=True)
     else:
-        print(f"[PointMaze] keeping {len(valid_t)}/{T-1} transitions", flush=True)
+        print(f"[PointMaze] keeping {len(valid_t)} transitions", flush=True)
+
+    # if max_transitions is not None:
+    #     valid_t = valid_t[:max_transitions]
+    #     print(f"[PointMaze] truncating to first {len(valid_t)} transitions", flush=True)
+    # else:
+    #     print(f"[PointMaze] keeping {len(valid_t)}/{T-1} transitions", flush=True)
 
     # Build stacked obs indices: for each valid_t = v, we need [v - (K-1), ..., v]
     K = obs_buffer_size
@@ -329,11 +360,25 @@ def main(cfg: DictConfig):
     for dataset_file in cfg.datasets:
         # LOAD DATSET AND DATALOADER
         print(f"LOADING {dataset_file}...")
+
+        balanced_idx_path = cfg.balanced_idx_path
+        valid_t_override = None
+        if balanced_idx_path and os.path.exists(balanced_idx_path):
+            print(f"[balanced] loading indices from {balanced_idx_path}")
+            valid_t_override = np.load(balanced_idx_path)
+
         wrappers, obs_shape, act_shape = load_pointmaze_dataset(
             dataset_file,
             obs_buffer_size=cfg.obs_buffer_size,
-            max_transitions=1_500_000
+            max_transitions=None,
+            valid_t_override=valid_t_override,
         )
+
+        # wrappers, obs_shape, act_shape = load_pointmaze_dataset(
+        #     dataset_file,
+        #     obs_buffer_size=cfg.obs_buffer_size,
+        #     max_transitions=1_500_000
+        # )
 
         dataset = PointMazeDataset(wrappers)
 
@@ -347,22 +392,7 @@ def main(cfg: DictConfig):
 
         print(f"FINISHED LOADING {dataset_file}")
 
-        # # Ground-truth action distribution
-        # gt_counts = compute_action_hist_h5(wrappers["action"], act_shape)
-        # gt_fracs = gt_counts / max(gt_counts.sum(), 1)
-        #
-        # print(f"[GT actions] {os.path.basename(dataset_file)} counts: {gt_counts.tolist()}")
-        # print(f"[GT actions] {os.path.basename(dataset_file)} fracs : {gt_fracs.tolist()}")
-        #
-        # if cfg.wandb:
-        #     import wandb as _wandb
-        #     table = _wandb.Table(
-        #         data=[[int(i), int(gt_counts[i]), float(gt_fracs[i])] for i in range(act_shape)],
-        #         columns=["action", "count", "fraction"],
-        #     )
-        #     _wandb.log({f"dataset/{os.path.basename(dataset_file)}/gt_action_dist": table}, step=train_step)
-
-        # ------- A) Ground-truth action distribution (per dataset) -------
+        # Ground-truth action distribution (per dataset)
         gt_counts = compute_action_hist_h5(wrappers["action"], act_shape)
         gt_fracs = gt_counts / max(gt_counts.sum(), 1)
 
@@ -399,10 +429,18 @@ def main(cfg: DictConfig):
             models = initialize_dependant_models(models)
             first_dataset = False
 
-        ce_weights = class_weights_from_counts(gt_counts, method="effective")
-        for name, m in models.items():
-            if hasattr(m, "set_class_weights"):
-                m.set_class_weights(ce_weights)
+        # prior = torch.tensor(gt_counts, dtype=torch.float32)
+        # prior = prior / prior.sum()
+        # for m in models.values():
+        #     if hasattr(m, "set_class_priors"):
+        #         print("[DEBUG] setting class priors")
+        #         m.set_class_priors(prior)
+        #
+        # ce_weights = class_weights_from_counts(gt_counts, method="effective")
+        # for name, m in models.items():
+        #     if hasattr(m, "set_class_weights"):
+        #         print("[DEBUG] setting class weights")
+        #         m.set_class_weights(ce_weights)
 
         train_step, save_paths, log_name = train(
             cfg,

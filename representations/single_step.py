@@ -34,13 +34,15 @@ class SingleStep(torch.nn.Module):
         self.dynamic_l1_penalty = cfg.algos.single_step.dynamic_l1_penalty
 
         if self.use_l2_norm:
-            raw_encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
-            self.embed_dim = raw_encoder.output_dim
-            self.encoder = torch.nn.Sequential(
-                raw_encoder,
-                torch.nn.Softmax(dim=1)
-            )
-            self.encoder.output_dim = self.embed_dim
+            # raw_encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+            # self.embed_dim = raw_encoder.output_dim
+            # self.encoder = torch.nn.Sequential(
+            #     raw_encoder,
+            #     torch.nn.Softmax(dim=1)
+            # )
+            # self.encoder.output_dim = self.embed_dim
+            self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
+            self.embed_dim = self.encoder.output_dim
         else:
             self.encoder = gen_model_nets.GenEncoder(obs_shape, cfg=encoder_cfg).cuda()
             self.embed_dim = self.encoder.output_dim
@@ -59,6 +61,12 @@ class SingleStep(torch.nn.Module):
             lr=self.learning_rate,
             weight_decay=self.weight_decay
         )
+
+        self.log_priors = None
+        self.tau = 1.3
+
+    def set_class_priors(self, p: torch.Tensor):
+        self.log_priors = p.clamp_min(1e-12).log().to("cuda")
 
     def share_dependant_models(self, models):
         pass
@@ -79,11 +87,14 @@ class SingleStep(torch.nn.Module):
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
 
+        if self.use_l2_norm:
+            o_encoded = F.normalize(o_encoded, p=2, dim=1)
+            on_encoded = F.normalize(on_encoded, p=2, dim=1)
+
         if self.forward_weight > 0:
-            forward_model_loss = F.mse_loss(
-                self.forward_model(o_encoded, act),
-                on_encoded,
-            )
+            target = on_encoded.detach()
+            forward_model_loss = F.mse_loss(self.forward_model(o_encoded, act), target)
+            # forward_model_loss = F.mse_loss(self.forward_model(o_encoded, act), on_encoded)
         else:
             forward_model_loss = 0
 
@@ -97,7 +108,10 @@ class SingleStep(torch.nn.Module):
             l1_loss = torch.zeros(1, device="cuda")
 
         inverse_model_pred = self.inverse_model(o_encoded, on_encoded)
-        inverse_model_loss = F.cross_entropy(inverse_model_pred, act, weight=self.ce_weight)
+        if self.log_priors is not None:
+            inverse_model_pred = inverse_model_pred - self.tau * self.log_priors
+        inverse_model_loss = F.cross_entropy(inverse_model_pred, act)
+        # inverse_model_loss = F.cross_entropy(inverse_model_pred, act, weight=self.ce_weight)
 
         with torch.no_grad():
             probs = inverse_model_pred.softmax(dim=1)

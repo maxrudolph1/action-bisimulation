@@ -39,14 +39,14 @@ def examine_hdf5(ds_path):
 
 def main():
     # Raw Episodes
-    buffer_dir = "~/bisim/exorl/datasets/point_mass_maze/rnd/buffer"
-    episodes = glob.glob(os.path.expanduser(f"{buffer_dir}/*.npz"))
-
-    for ep in episodes[:1]:
-        examine_raw_episode(ep)
+    # buffer_dir = "~/bisim/exorl/datasets/point_mass_maze/rnd/buffer"
+    # episodes = glob.glob(os.path.expanduser(f"{buffer_dir}/*.npz"))
+    #
+    # for ep in episodes[:1]:
+    #     examine_raw_episode(ep)
 
     # HDF5
-    ds_path = "/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_0721.hdf5"
+    ds_path = "/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_with_eplen.hdf5"
     examine_hdf5(ds_path)
 
 

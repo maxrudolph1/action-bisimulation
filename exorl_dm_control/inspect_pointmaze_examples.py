@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
 
+""" RUN COMMAND:
+python inspect_pointmaze_examples.py \
+  --dataset '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_with_eplen.hdf5' \
+  --obs-buffer-size 4 \
+  --max-transitions 1500000 \
+  --n-per-action 3 \
+  --encoder-checkpoint <single step encoder path> \
+  --wandb-entity 'evan-kuo-edu' \
+  --wandb-project nav2d \
+  --seed 0
+"""
+
 import os
 import argparse
 import numpy as np
