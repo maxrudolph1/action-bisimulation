@@ -1,13 +1,13 @@
 import torch
 import numpy as np
 from matplotlib import cm
-import matplotlib.pyplot as plt
-#from nav2d_representation.pointmass.d4rl_maze2d import VisualMazeEnv
+# import matplotlib.pyplot as plt
+# from nav2d_representation.pointmass.d4rl_maze2d import VisualMazeEnv
 from environments.nav2d.nav2d import Navigate2D
 # from nav2d_representation.nav2d.nav2d_po import Navigate2DPO
 
 ENV_DICT = {
-    "pointmass": 0,#VisualMazeEnv,
+    "pointmass": 0,  # VisualMazeEnv,
     "nav2d": Navigate2D,
     # "nav2dpo": Navigate2DPO,
 }
@@ -18,6 +18,7 @@ def reparameterize(mu, log_var):
     eps = torch.randn_like(std)
     return eps * std + mu
 
+
 def action_set(obs):
     N, c, h, w = obs.shape
     obs += 1
@@ -27,34 +28,34 @@ def action_set(obs):
     pos_idx = torch.argmax(obs[:,1,:,:].flatten(start_dim=1), dim=1).unsqueeze(-1)
     pos_idx = torch.cat([torch.div(pos_idx,h, rounding_mode='floor'), pos_idx % w], dim=1) # find the position of the agent
     move_idx = pos_idx.unsqueeze(0).repeat(4, 1, 1) # repeat the position 4 times, once for each move
-    
+
     move_idx[0,:,0] += 1 
     move_idx[1,:,0] -= 1
     move_idx[2,:,1] += 1
     move_idx[3,:,1] -= 1
-    
-    move_idx = move_idx.transpose(1,0) 
+
+    move_idx = move_idx.transpose(1,0)
     batch_idx = torch.arange(0,N).unsqueeze(-1).repeat(1,4).unsqueeze(-1).cuda()
 
     move_idx = torch.cat([batch_idx, move_idx], dim=-1)
     move_idx = move_idx.flatten(start_dim=0, end_dim=1)
-    
+
     move_idx[:,0] = torch.clamp(move_idx[:,0], 0, N-1) # clamp the moves to the grid
     move_idx[:,1] = torch.clamp(move_idx[:,1], 0, h-1)
     move_idx[:,2] = torch.clamp(move_idx[:,2], 0, w-1)
-    
+
     potential_moves[move_idx[:,0], move_idx[:,1], move_idx[:,2]] = 1
-    
+
     valid_moves_on_grid = potential_moves * (1 - obstacles)
     valid_moves_on_grid *= (1 - obs[:,1,:,:])
-    
+
     valid_moves = torch.zeros(N, 4)
-    
+
     down_moves = move_idx[::4, :] # reordered becaues of the way the moves are ordered
     up_moves = move_idx[1::4, :]
     right_moves = move_idx[2::4, :]
     left_moves = move_idx[3::4, :]
-    
+
     valid_moves[:,0] = valid_moves_on_grid[up_moves[:,0], up_moves[:,1], up_moves[:,2]]
     valid_moves[:,1] = valid_moves_on_grid[down_moves[:,0], down_moves[:,1], down_moves[:,2]]
     valid_moves[:,2] = valid_moves_on_grid[left_moves[:,0], left_moves[:,1], left_moves[:,2]]
@@ -66,7 +67,7 @@ def action_set_onehot(obs):
     valid_moves = action_set(obs).cuda()
     N, _ = valid_moves.shape
     batch_idx = torch.arange(0,4).unsqueeze(0).repeat(N,1).cuda()
-    
+
     onehot_idx = torch.pow(2, batch_idx) * valid_moves
 
     onehot = torch.zeros(N, 4**2)
@@ -130,16 +131,15 @@ def grad_heatmap(obs, encoder):
 
 
 if __name__=="__main__":
-    
     K = 20
     obs = np.zeros((3,K,K))
-    
+
     obs[0,:,:] = np.random.random((K,K))
     obs[obs > 0.75] = 1
     obs[obs <= 0.75] = 0
     obs[1,:,:] = 0
-    
-   
+
+
     obs = obs[np.newaxis,:,:,:]
     obs = np.concatenate([obs,obs, obs], axis=0)
 
@@ -158,7 +158,7 @@ if __name__=="__main__":
 
     #     img = np.concatenate([imgs[i,:,:,[0]], imgs[i,:,:,[1]], imgs[i,:,:,[2]]], axis=0)
     #     img = img.transpose(2,1,0)
-        
+
     #     # img = np.concatenate([imgs[i,:,:,[0]], imgs[i,:,:,[1]], imgs[i,:,:,[2]]], axis=1)
     #     # img = np.concatenate([img, img, img], axis=0).transpose(2,1,0)
     #     # print(img.shape)
@@ -166,6 +166,3 @@ if __name__=="__main__":
     #     # plt.show()
 
     #     plt.imsave(f"img{i}.png", img)
-    
-    
-    
