@@ -21,14 +21,15 @@ datasets: [
 ]
 name: 'default_run_name'
 wandb: False
-wandb_entity: 'maxrudolph'
+wandb_entity: 'evan-kuo-edu'
+env: 'nav2d' # can also be 'pointmaze'
 seed: 0
 n_epochs: 20
 batch_size: 256
 met_log_freq: 10
 img_log_freq: 1000
 train_evaluators: True
-eval_encoder: ''
+eval_encoder: '' # downstream RL evaluation of these encoders
 defaults:
   - algos: single_step
   - algos/evaluators@evaluators

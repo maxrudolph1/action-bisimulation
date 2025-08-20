@@ -106,15 +106,14 @@ def main(cfg: DictConfig):
 
     wandb_name = None
     if cfg.wandb:
-        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
         name = f"{cfg.name}_{cur_date_time}"
+        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
         # name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",
-            # group="ms_acro_grd_30_obstcls_100",
             name=name,
             config=OmegaConf.to_container(cfg)
         )
@@ -152,8 +151,6 @@ def main(cfg: DictConfig):
 
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
         wandb.finish()
-        # grid = 30
-        # num_obs = 100
         grid = 15
         num_obs = 20
         total_timesteps = 600000  # default is 1 mil
@@ -212,7 +209,6 @@ def train(
 
     for epoch in range(cfg.n_epochs):
         sample_ind_all = np.random.permutation(len(dataset["obs"]))
-        # sample_ind_next = np.random.permutation(len(dataset["obs"]))
         steps_per_epoch = -(len(sample_ind_all) // -cfg.batch_size)
 
         for i in tqdm.tqdm(range(steps_per_epoch), desc=f"Epoch #{epoch}"):
@@ -220,6 +216,11 @@ def train(
             end = min(len(sample_ind_all), (i + 1) * cfg.batch_size)
             sample_ind = np.sort(sample_ind_all[start:end])
             samples = {key: dataset[key][sample_ind] for key in dataset_keys}
+
+            # normalize for pointmaze
+            if getattr(cfg, "env", None) == "pointmaze":
+                samples["obs"] = samples["obs"].astype(np.float32) / 127.5 - 1.0
+                samples["obs_next"] = samples["obs_next"].astype(np.float32) / 127.5 - 1.0
 
             # train the representation models
             for model_name, model in models.items():
@@ -234,23 +235,8 @@ def train(
 
             if cfg.wandb:
                 log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
-            else: # FIXME: remove this block because its just for debugging
-                if train_step % cfg.img_log_freq == 0:
-                    for model_name, evaluator in evaluators.items():
-                        imgs = evaluator.eval_imgs(samples)
-                        wandb_imgs_log = {
-                            f"{model_name}/{key}": img
-                            for key, img in imgs.items()
-                        }
 
             train_step += 1
-
-    # time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    # logdir = os.path.join(cfg.logdir, time_str)
-    #
-    # os.makedirs(logdir)
-    # for model_name, model in models.items():
-    #     model.save(logdir + f"/{model_name}.pt")
 
     log_name = ((wandb_name + "_") if wandb_name is not None else cur_date_time) + ("ts_" + str(train_step))
     logdir = os.path.join(cfg.logdir, log_name)
