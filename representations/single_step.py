@@ -56,16 +56,21 @@ class SingleStep(torch.nn.Module):
         if epoch >= self.train_stop_epochs:
             return {}
         obs = torch.as_tensor(batch["obs"], device="cuda")
-        act = torch.as_tensor(batch["action"], device="cuda")
         obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
+
+        # NOTE: NORMALIZE FOR POINTMAZE ONLY
+        # obs = obs.float() / 127.5 - 1.0
+        # obs_next = obs_next.float() / 127.5 - 1.0
+
+        act = torch.as_tensor(batch["action"], device="cuda") # NOTE: changed for pointmaze (OLD)
+        # act = torch.as_tensor(batch["action"], device="cuda").squeeze(-1).long()  # new?
+
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
 
         if self.forward_weight > 0:
-            forward_model_loss = F.mse_loss(
-                self.forward_model(o_encoded, act),
-                on_encoded,
-            )
+            # NOTE: could consider detaching on_encoded... unsure (exorl_displacement_branch)
+            forward_model_loss = F.mse_loss(self.forward_model(o_encoded, act), on_encoded)
         else:
             forward_model_loss = 0
 
