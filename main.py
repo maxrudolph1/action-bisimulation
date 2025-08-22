@@ -1,24 +1,17 @@
-# Unused imports were commented out
-# import json
 import os
-# import shutil
-# import sys
-# from argparse import ArgumentParser
-# from collections import deque
 import h5py
 import tqdm
-# from matplotlib import cm
 import torch
 import numpy as np
 import wandb
+import random
+import datetime
+
+from torch.utils.data import Dataset, DataLoader
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
-# import torch.nn.functional as F
-import random
-# from environments.nav2d.utils import perturb_heatmap
-import datetime
 from representations.acro import Acro
 from representations.single_step import SingleStep
 from representations.multi_step import MultiStep
@@ -27,7 +20,6 @@ from representations.evaluators import Evaluators
 from representations.info_nce import NCE
 
 from call_rl_main import call_rl
-
 
 MODEL_DICT = {'single_step': SingleStep,
               'multi_step': MultiStep,
