@@ -55,15 +55,12 @@ class SingleStep(torch.nn.Module):
     def train_step(self, batch, epoch, train_step):
         if epoch >= self.train_stop_epochs:
             return {}
-        obs = torch.as_tensor(batch["obs"], device="cuda")
-        obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
-
-        # NOTE: NORMALIZE FOR POINTMAZE ONLY
-        # obs = obs.float() / 127.5 - 1.0
-        # obs_next = obs_next.float() / 127.5 - 1.0
-
-        act = torch.as_tensor(batch["action"], device="cuda") # NOTE: changed for pointmaze (OLD)
-        # act = torch.as_tensor(batch["action"], device="cuda").squeeze(-1).long()  # new?
+        # obs = torch.as_tensor(batch["obs"], device="cuda")
+        # obs_next = torch.as_tensor(batch["obs_next"], device="cuda")
+        # act = torch.as_tensor(batch["action"], device="cuda")
+        obs = batch["obs"]
+        obs_next = batch["obs_next"]
+        act = batch["action"]
 
         o_encoded = self.encoder(obs)
         on_encoded = self.encoder(obs_next)
@@ -125,7 +122,6 @@ class SingleStep(torch.nn.Module):
             "loss": total_loss.detach().item(),
             "accuracy": accuracy.detach().item(),
             "cur_regularization_penalty": multiplier,
-
         }
         self.last_ret = ret
         return ret
