@@ -46,29 +46,17 @@ def load_dataset(dataset_path):
     return dataset, obs_shape, act_shape
 
 
-# def compute_action_hist_h5(action_wrapper, num_actions, chunk=200_000):
-#     """Stream counts from HDF5 efficiently using the wrapper's valid index."""
-#     valid = action_wrapper.valid
-#     ds = action_wrapper.ds
-#     counts = np.zeros(num_actions, dtype=np.int64)
-#     n = len(valid)
-#     for i in range(0, n, chunk):
-#         idx = valid[i:i+chunk]
-#         arr = ds[idx]               # shape (chunk, 1)
-#         arr = np.asarray(arr).reshape(-1)
-#         counts += np.bincount(arr, minlength=num_actions)
-#     return counts
+def compute_action_stats_h5(action_wrapper):
+    """Return mean/std of ax, ay and magnitude stats on the *valid* subset."""
+    ds = action_wrapper.ds         # (T, 2)
+    valid = action_wrapper.valid   # indices (N,)
+    arr = np.asarray(ds[:], dtype=np.float32)  # read once (contiguous)
+    arr = arr[valid]               # (N, 2)
+    mu = arr.mean(axis=0)
+    sigma = arr.std(axis=0) + 1e-6
+    mag = np.linalg.norm(arr, axis=1)
+    return arr, mu, sigma, mag.mean(), mag.std()
 
-def compute_action_hist_h5(action_wrapper, num_actions):
-    """Compute counts for action_wrapper.valid without h5py fancy indexing."""
-    valid = action_wrapper.valid
-    ds = action_wrapper.ds
-
-    # one contiguous read from HDF5; ~40MB
-    acts_all = np.asarray(ds[:]).reshape(-1)   # (T,)
-    labels = acts_all[valid]
-    counts = np.bincount(labels, minlength=num_actions)
-    return counts
 
 def class_weights_from_counts(counts, method="effective", beta=0.9999):
     c = torch.tensor(counts, dtype=torch.float32)
@@ -150,7 +138,7 @@ def load_pointmaze_dataset(
     print(f"[PointMaze] opening {dataset_path!r}", flush=True)
     f = h5py.File(dataset_path, 'r')
     imgs = f['images'] # shape (T, H, W, 3)
-    acts = f['action'] # shape (T, 1)
+    acts = f['action'] # shape (T, 2)
     physics = f['physics'] # shape (T, 4)
     ep_lens = f['episode_lengths'][:]
 
@@ -217,11 +205,7 @@ def load_pointmaze_dataset(
     stacked_obs_shape = (h, w, c * obs_buffer_size)
     print("Obs shape (stacked):", stacked_obs_shape)
 
-    DISCRETE = True
-    if DISCRETE:
-        act_shape = 9 # FIXME: Make sure this is the correct formatting
-    else:
-        act_shape = acts.shape[1]
+    act_shape = acts.shape[1]
     print("Action shape:", act_shape)
 
     return {"obs": obs, "obs_next": obs_next, "action": action, "physics": physics}, stacked_obs_shape, act_shape
@@ -363,14 +347,14 @@ def main(cfg: DictConfig):
 
         balanced_idx_path = cfg.balanced_idx_path
         valid_t_override = None
-        if balanced_idx_path and os.path.exists(balanced_idx_path):
+        if balanced_idx_path and os.path.exists(balanced_idx_path) and (len(balanced_idx_path) > 0):
             print(f"[balanced] loading indices from {balanced_idx_path}")
             valid_t_override = np.load(balanced_idx_path)
 
         wrappers, obs_shape, act_shape = load_pointmaze_dataset(
             dataset_file,
             obs_buffer_size=cfg.obs_buffer_size,
-            max_transitions=None,
+            max_transitions=1_000_000,
             valid_t_override=valid_t_override,
         )
 
@@ -393,39 +377,55 @@ def main(cfg: DictConfig):
         print(f"FINISHED LOADING {dataset_file}")
 
         # Ground-truth action distribution (per dataset)
-        gt_counts = compute_action_hist_h5(wrappers["action"], act_shape)
-        gt_fracs = gt_counts / max(gt_counts.sum(), 1)
+        # gt_counts = compute_action_hist_h5(wrappers["action"], act_shape)
+        # gt_fracs = gt_counts / max(gt_counts.sum(), 1)
 
-        print(f"[GT actions] {os.path.basename(dataset_file)} counts: {gt_counts.tolist()}")
-        print(f"[GT actions] {os.path.basename(dataset_file)} fracs : {gt_fracs.tolist()}")
+        # print(f"[GT actions] {os.path.basename(dataset_file)} counts: {gt_counts.tolist()}")
+        # print(f"[GT actions] {os.path.basename(dataset_file)} fracs : {gt_fracs.tolist()}")
+
+        acts_arr, a_mu, a_sigma, mag_mu, mag_std = compute_action_stats_h5(wrappers["action"])
+        print(f"[actions] mu={a_mu.tolist()} sigma={a_sigma.tolist()} | |a| mu={mag_mu:.4f} std={mag_std:.4f}")
 
         if cfg.wandb:
             import wandb as _wandb
             ds_name = os.path.basename(dataset_file)
 
-            # Table (keep)
-            rows = [[str(i), int(gt_counts[i]), float(gt_fracs[i])] for i in range(act_shape)]
-            table = _wandb.Table(data=rows, columns=["action", "count", "fraction"])
+            # # Table (keep)
+            # rows = [[str(i), int(gt_counts[i]), float(gt_fracs[i])] for i in range(act_shape)]
+            # table = _wandb.Table(data=rows, columns=["action", "count", "fraction"])
+            #
+            # # Log the table and then 2 bar charts to the same step
+            # _wandb.log({f"dataset/{ds_name}/gt_action_dist_table": table},
+            #            step=train_step, commit=False)
+            #
+            # # Bar charts (counts + fractions) derived from the table
+            # bar_counts = _wandb.plot.bar(table, "action", "count",
+            #                              title=f"{ds_name}: GT action counts")
+            # bar_fracs  = _wandb.plot.bar(table, "action", "fraction",
+            #                              title=f"{ds_name}: GT action fractions")
 
-            # Log the table and then 2 bar charts to the same step
-            _wandb.log({f"dataset/{ds_name}/gt_action_dist_table": table},
-                       step=train_step, commit=False)
-
-            # Bar charts (counts + fractions) derived from the table
-            bar_counts = _wandb.plot.bar(table, "action", "count",
-                                         title=f"{ds_name}: GT action counts")
-            bar_fracs  = _wandb.plot.bar(table, "action", "fraction",
-                                         title=f"{ds_name}: GT action fractions")
-
+            # _wandb.log({
+            #     f"dataset/{ds_name}/gt_action_counts_bar": bar_counts,
+            #     f"dataset/{ds_name}/gt_action_fractions_bar": bar_fracs,
+            # }, step=train_step)
             _wandb.log({
-                f"dataset/{ds_name}/gt_action_counts_bar": bar_counts,
-                f"dataset/{ds_name}/gt_action_fractions_bar": bar_fracs,
-            }, step=train_step)
+                    f"dataset/{ds_name}/action_mu": a_mu.tolist(),
+                    f"dataset/{ds_name}/action_sigma": a_sigma.tolist(),
+                    f"dataset/{ds_name}/action_mag_mu": float(mag_mu),
+                    f"dataset/{ds_name}/action_mag_std": float(mag_std),
+                    # quick histograms (downsample to avoid huge uploads)
+                    f"dataset/{ds_name}/ax_hist": _wandb.Histogram(acts_arr[::50, 0]),
+                    f"dataset/{ds_name}/ay_hist": _wandb.Histogram(acts_arr[::50, 1]),
+                    f"dataset/{ds_name}/amag_hist": _wandb.Histogram(np.linalg.norm(acts_arr[::50], axis=1)),
+                }, step=train_step)
 
         if first_dataset:
             # CREATE MODELS AND EVALUATORS
             models, evaluators = create_models(cfg, obs_shape, act_shape)
             print("Evaluators", evaluators.keys())
+            for m in models.values():
+                if hasattr(m, "set_action_norm"):
+                    m.set_action_norm(a_mu, a_sigma)
             models = initialize_dependant_models(models)
             first_dataset = False
 
@@ -477,7 +477,7 @@ def train(
             # Transfer to GPU (non_blocking because pin_memory=True)
             obs = obs_np.cuda(non_blocking=True)
             obs_next = obs_next_np.cuda(non_blocking=True)
-            action = act_np.cuda(non_blocking=True).long()
+            action = act_np.cuda(non_blocking=True)
 
             if (cfg.env == 'pointmaze'):
                 samples = {"obs": obs, "obs_next": obs_next, "action": action, "physics": phys_np}

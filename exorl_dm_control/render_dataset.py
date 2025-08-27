@@ -12,11 +12,15 @@ import dmc
 os.environ['MUJOCO_GL'] = 'egl'
 
 TASK = 'point_mass_maze_reach_top_left'
-DISCRETE = True
+# DISCRETE = True
+DISCRETE = False
 BUFFER_DIR = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/buffer')
-OUT_PATH = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_with_eplen.hdf5')
+# OUT_PATH = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_with_eplen.hdf5')
+OUT_PATH = os.path.expanduser('~/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_continuous.hdf5')
 IMG_H, IMG_W = 64, 64
 
+MAX_STEPS = 2_000_000
+RNG_SEED = 0
 
 def make_discrete_mappings():
     # 9 actions: no-op, N, S, E, W, NE, NW, SE, SW
@@ -54,17 +58,16 @@ def process_chunk(args):
         seed=seed,
     )
 
-    images, physics, actions, rewards, discounts = [], [], [], [], []
+    images, physics, actions = [], [], []
     ep_lens = []
     cont2disc, disc2cont = make_discrete_mappings()
 
     for ep in tqdm(file_list, desc=f"Worker {seed}", position=seed, leave=False):
-        data = np.load(ep)
+        # data = np.load(ep)
+        data = np.load(ep, allow_pickle=False)
         cont_action = data['action']
 
         phys_orig = data['physics']
-        reward_orig = data['reward']
-        disc_orig = data['discount']
         if not DISCRETE:
             frames = []
             for state in phys_orig:
@@ -76,57 +79,86 @@ def process_chunk(args):
             images.append(np.stack(frames, axis=0))
             physics.append(phys_orig)
             actions.append(np.array(cont_action, dtype=np.float32))
-            rewards.append(np.array(reward_orig)[..., None])
-            discounts.append(np.array(disc_orig)[..., None])
+
         else:
             phys_init = phys_orig[0]
-            ts0 = env.reset()
             with env.physics.reset_context():
                 env.physics.set_state(phys_init)
 
-            frames, new_phys, new_acts, new_rews, new_discs = [], [], [], [], []
+            frames, new_phys, new_acts = [], [], []
 
-            for a_cont, r0, d0 in zip(cont_action, reward_orig, disc_orig):
+            for a_cont in cont_action:
                 idx = cont2disc(a_cont)
                 a_use = disc2cont[idx]
 
                 ts = env.step(a_use)
                 if ts.last():
                     break
-                new_rews.append(float(ts.reward) if ts.reward is not None else float(r0))
-                new_discs.append(float(ts.discount) if ts.discount is not None else float(d0))
 
                 s = env.physics.get_state()
                 new_phys.append(s)
                 new_acts.append([idx])
                 frames.append(env.physics.render(width=IMG_W, height=IMG_H, camera_id=0))
 
+            if len(frames) == 0:
+                continue
+
             images.append(np.stack(frames, axis=0))
             physics.append(np.stack(new_phys, axis=0))
             actions.append(np.array(new_acts, dtype=np.int32))
-            rewards.append(np.array(new_rews) [..., None])
-            discounts.append(np.array(new_discs) [..., None])
         ep_lens.append(images[-1].shape[0])
 
     return (
         np.concatenate(images, axis=0),
         np.concatenate(physics, axis=0),
         np.concatenate(actions, axis=0),
-        np.concatenate(rewards, axis=0),
-        np.concatenate(discounts, axis=0),
         np.array(ep_lens, dtype=np.int32),
     )
 
+def choose_episodes_up_to_cap(all_eps, max_steps, rng):
+    """Shuffle episodes, then take whole episodes until sum(lengths) <= max_steps."""
+    # Randomize episode order
+    all_eps = list(all_eps)
+    rng.shuffle(all_eps)
+
+    selected = []
+    total = 0
+    for p in all_eps:
+        with np.load(p, allow_pickle=False) as f:
+            # Use physics len (== action len) as per-step count
+            L = f['physics'].shape[0]
+        if L <= 1:
+            continue  # skip trivially short episodes
+        if total + L > max_steps:
+            # stop BEFORE exceeding the cap (no partial episode)
+            break
+        selected.append(p)
+        total += L
+        if total == max_steps:
+            break
+    return selected, total
 
 if __name__ == "__main__":
     import multiprocessing
     multiprocessing.set_start_method('spawn', force=True)
 
     all_eps = sorted(glob.glob(f"{BUFFER_DIR}/*.npz"))
-    N = min(max(cpu_count()-2, 1), len(all_eps))
-    chunks = [all_eps[i::N] for i in range(N)]
-    args = [(TASK, chunks[i], i) for i in range(N)]
+    rng = np.random.default_rng(RNG_SEED)
 
+    # If we're in continuous mode, preselect a random set of whole episodes up to the cap.
+    if not DISCRETE:
+        selected_eps, planned_steps = choose_episodes_up_to_cap(all_eps, MAX_STEPS, rng)
+        if len(selected_eps) == 0:
+            raise RuntimeError("No episodes selected; check buffer path or episode lengths.")
+        print(f"[info] selected {len(selected_eps)} episodes totaling {planned_steps} steps (cap={MAX_STEPS})")
+        eps_for_work = selected_eps
+    else:
+        # No cap applied to discrete path unless you want it—then just reuse the same selection code.
+        eps_for_work = all_eps
+
+    N = min(max(cpu_count() - 2, 1), len(eps_for_work))
+    chunks = [eps_for_work[i::N] for i in range(N)]
+    args = [(TASK, chunks[i], i) for i in range(N)]
 
     with h5py.File(OUT_PATH, 'w') as hf:
         hf.create_dataset('images',
@@ -141,18 +173,16 @@ if __name__ == "__main__":
             dtype='int32'   if DISCRETE else 'float32',
             chunks=(1024,1) if DISCRETE else (1024,2),
             compression='gzip')
-        hf.create_dataset('reward',
-            shape=(0,4), maxshape=(None,4),
-            dtype='float32', chunks=(1024,4), compression='gzip')
-        hf.create_dataset('discount',
-            shape=(0,1), maxshape=(None,1),
-            dtype='float32', chunks=(1024,1), compression='gzip')
         hf.create_dataset('episode_lengths',
             shape=(0,), maxshape=(None,),
             dtype='int32', chunks=(1024,), compression='gzip')
 
+        hf.attrs['max_steps_cap'] = MAX_STEPS
+        hf.attrs['rng_seed'] = RNG_SEED
+        hf.attrs['mode'] = 'discrete' if DISCRETE else 'continuous'
+
         with Pool(N) as pool:
-            for imgs, phys, acts, rews, discs, ep_len in tqdm(
+            for imgs, phys, acts, ep_len in tqdm(
                     pool.imap_unordered(process_chunk, args),
                     total=N, desc="Appending chunks"):
 
@@ -161,9 +191,9 @@ if __name__ == "__main__":
                 # resize & write the new slice
                 for name, arr in [("images",imgs),
                                   ("physics",phys),
-                                  ("action",acts),
-                                  ("reward",rews),
-                                  ("discount",discs)]:
+                                  ("action",acts)]:
+                    if T == 0:
+                        continue
                     ds = hf[name]
                     old = ds.shape[0]
                     ds.resize(old + T, axis=0)
@@ -176,6 +206,7 @@ if __name__ == "__main__":
                 ds[old:old + M] = ep_len
 
                 # free the chunk from memory
-                del imgs, phys, acts, rews, discs, ep_len
+                del imgs, phys, acts, ep_len
 
         hf.attrs['total_steps'] = hf['images'].shape[0]
+        print(f"[info] wrote {hf.attrs['total_steps']} steps to {OUT_PATH}")

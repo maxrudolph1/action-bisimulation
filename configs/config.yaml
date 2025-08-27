@@ -20,11 +20,12 @@ datasets: [
 
   # '/home/ekuo/bisim/action-bisimulation/datasets/nav2d_dataset_s1_e0.5_size1250000__k_steps_6_num_obstacles_20_grid_size_15.hdf5',
 
-  # Exorl Dataset
-  '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_with_eplen.hdf5',
+  # Exorl Dataset - Force Based
+  # '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_with_eplen.hdf5', # Discrete
+  '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/all_eps_continuous.hdf5', # Continuous
 ]
-# balanced_idx_path: '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/balanced_valid_t_all_eps_eplen.npy'
-balanced_idx_path: '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/balanced_uniq_stall.npy'
+# balanced_idx_path: '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/balanced_uniq_stall.npy'
+balanced_idx_path: ''
 name: 'default_run_name'
 wandb: False
 wandb_entity: 'evan-kuo-edu'

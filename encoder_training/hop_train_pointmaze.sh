@@ -20,22 +20,27 @@
 # 	algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
 #       algos.single_step.forward_weight=0.25
 
-python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_3' wandb=True \
+# python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_3' wandb=True \
+#         n_epochs=9 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
+#         algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
+#         algos.single_step.forward_weight=0.3 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
+
+# python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_2' wandb=True \
+#         n_epochs=6 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
+#         algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
+#         algos.single_step.forward_weight=0.2 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
+#
+# python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_1' wandb=True \
+#         n_epochs=6 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
+#         algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
+#         algos.single_step.forward_weight=0.1 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
+#
+# python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_0' wandb=True \
+#         n_epochs=6 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
+#         algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
+#         algos.single_step.forward_weight=0 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
+
+python main.py algos='[single_step]' name='CONTINUOUS_pointmaze_ss_forwardWeight_3' wandb=True \
         n_epochs=9 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
         algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
         algos.single_step.forward_weight=0.3 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
-
-python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_2' wandb=True \
-        n_epochs=6 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
-        algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
-        algos.single_step.forward_weight=0.2 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
-
-python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_1' wandb=True \
-        n_epochs=6 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
-        algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
-        algos.single_step.forward_weight=0.1 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
-
-python main.py algos='[single_step]' name='pointmaze_ss_forwardWeight_0' wandb=True \
-        n_epochs=6 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
-        algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
-        algos.single_step.forward_weight=0 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \

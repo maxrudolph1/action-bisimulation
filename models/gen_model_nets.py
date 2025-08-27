@@ -19,7 +19,7 @@ class GenEncoder(torch.nn.Module):
             self.last_layer = nn.Sequential(nn.ReLU(), nn.Linear(self.cnn_encoder.output_dim, self.output_dim))
         else:
             self.use_output_layer = False
-            self.output_dim = self.encoder.output_dim
+            self.output_dim = self.cnn_encoder.output_dim
         self.cfg = cfg
         self.obs_dim = obs_dim
 
@@ -71,7 +71,8 @@ class GenStochasticForwardDynamics(torch.nn.Module):
         )
 
     def forward(self, embed, action):
-        x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
+        # x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
+        x = torch.cat([embed, action], dim=-1)
         return self.fc_mu(x), self.fc_log_var(x)
 
 
@@ -79,15 +80,12 @@ class GenForwardDynamics(torch.nn.Module):
     def __init__(self, embed_dim, action_dim, cfg):
         super().__init__()
         self.action_dim = action_dim
-        # layers = []
         self.activation = cfg['post_activation']
-
-        self.fc = gen_nets.LinearNetwork(
-            embed_dim + action_dim, embed_dim, **cfg
-        )
+        self.fc = gen_nets.LinearNetwork(embed_dim + action_dim, embed_dim, **cfg)
 
     def forward(self, embed, action):
-        x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
+        # x = torch.cat([embed, F.one_hot(action, num_classes=self.action_dim)], dim=-1)
+        x = torch.cat([embed, action], dim=-1)
         return self.fc(x)
 
     def reset_weights(self):
