@@ -5,12 +5,14 @@ datasets: [
   # '/home/ekuo/bisim/action-bisimulation/datasets/nav2d_dataset_s1_e0.5_size1250000__k_steps_6_num_obstacles_100_grid_size_30.hdf5'
 
   # Pointmaze
-  '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/displacement_discretized.hdf5'
+  # '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/displacement_discretized.hdf5'
+  '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/small_displacement_discretized.hdf5'
 ]
 name: 'default_run_name'
 wandb: False
 wandb_entity: 'evan-kuo-edu'
-balanced_idx_path: '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/balanced_subset_displacement_discretized.npy'
+balanced_idx_path: ''
+# balanced_idx_path: '/home/ekuo/bisim/exorl/datasets/point_mass_maze/rnd/balanced_subset_displacement_discretized.npy'
 env: 'pointmaze' # either 'nav2d' or 'pointmaze'
 max_transitions: 1_500_000
 max_transitions_mode: 'head' # either 'head' or 'random'
