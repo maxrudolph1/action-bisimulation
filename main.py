@@ -29,10 +29,24 @@ MODEL_DICT = {'single_step': SingleStep,
               'nce': NCE}
 
 
-import h5py
-import numpy as np
-from torch.utils.data import Dataset, DataLoader
-import torch
+class PointMazeDataset(Dataset):
+    def __init__(self, wrappers):
+        self.obs = wrappers["obs"]
+        self.obs_next = wrappers["obs_next"]
+        self.action = wrappers["action"]
+        self.physics = wrappers["physics"]
+
+    def __len__(self):
+        return len(self.obs)
+
+    def __getitem__(self, i):
+        return (
+            self.obs[i],
+            self.obs_next[i],
+            self.action[i].squeeze(),
+            self.physics[i],
+        )
+
 
 class H5StackedObsWrapper:
     """Given base image dataset and precomputed per-sample K indices,
@@ -60,22 +74,6 @@ class H5SliceWrapper:
 
     def __getitem__(self, idx):
         return self.ds[self.valid[idx]]
-
-
-class PointMazeDataset(Dataset):
-    """Returns (obs, obs_next, action, physics) as numpy; DataLoader will tensorize."""
-    def __init__(self, wrappers):
-        self.obs     = wrappers["obs"]
-        self.obs_next= wrappers["obs_next"]
-        self.action  = wrappers["action"]
-        self.physics = wrappers["physics"]
-
-    def __len__(self):
-        return len(self.obs)
-
-    def __getitem__(self, i):
-        # action from (1,) -> scalar
-        return self.obs[i], self.obs_next[i], self.action[i].squeeze(), self.physics[i]
 
 
 def _valid_t_from_eps(ep_len: np.ndarray, K: int) -> np.ndarray:
@@ -116,36 +114,33 @@ def _filter_valid_t_for_K(valid_t: np.ndarray, starts: np.ndarray, lens: np.ndar
 
 
 def load_pointmaze_dataset(
-    dataset_path: str,
-    obs_buffer_size: int = 1,        # K; set >1 if you want stacked frames
-    max_transitions: int = None,     # optional head cap
-    valid_t_override: np.ndarray = None, # e.g., your balanced indices
+    dataset_path,
+    obs_buffer_size=1,        # K; set >1 if you want stacked frames
+    max_transitions=None,     # optional head cap
+    valid_t_override=None, # e.g., your balanced indices
 ):
     """
     Lazily open HDF5 and return wrappers for obs/obs_next/action/physics.
-    Adapts the 'old' slicer approach to the current dataset layout.
     """
     f = h5py.File(dataset_path, 'r')
-    imgs    = f['images']     # (T,H,W,3) uint8, gzip-chunked
-    acts    = f['action']     # (T,1) int32
+    imgs = f['images']     # (T,H,W,3) uint8, gzip-chunked
+    acts= f['action']     # (T,1) int32
     physics = f['physics']    # (T,4) float64
-    ep_len  = f['episode_lengths'][:].astype(np.int64)
+    ep_len = f['episode_lengths'][:].astype(np.int64)
 
-    # some files also include episode_starts; not required
-    if 'episode_starts' in f:
-        starts = f['episode_starts'][:].astype(np.int64)
-    else:
-        starts = np.empty_like(ep_len, dtype=np.int64)
-        starts[0] = 0
-        if len(ep_len) > 1:
-            starts[1:] = np.cumsum(ep_len[:-1])
+    starts = np.empty_like(ep_len, dtype=np.int64)
+    starts[0] = 0
+    if len(ep_len) > 1:
+        starts[1:] = np.cumsum(ep_len[:-1])
 
     T, H, W, C = imgs.shape
 
     K = int(obs_buffer_size)
     if valid_t_override is None:
+        # TODO: CHECK THIS
         valid_t = _valid_t_from_eps(ep_len, K)
     else:
+        # TODO: CHECK THIS
         # ensure the provided valid_t still respects K stacking and t+1 in-bounds
         v = np.asarray(valid_t_override, dtype=np.int64)
         valid_t = _filter_valid_t_for_K(v, starts, ep_len, K, T)
@@ -166,41 +161,15 @@ def load_pointmaze_dataset(
         "physics":  H5SliceWrapper(physics, valid_t),
     }
 
-    # shapes like the old code (H, W, 3*K)
-    # stacked_obs_shape = (H, W, C * K)
+    # TODO: FLAGGED
     stacked_obs_shape = (C * K, H, W)
+    # stacked_obs_shape = (H, W, C * K)
+    print("Obs shape (stacked):", stacked_obs_shape)
 
     # discrete actions: 9
     act_shape = 9
 
-    return wrappers, stacked_obs_shape, act_shape, f  # return file handle to keep open
-
-
-def make_loader(dataset_path, obs_buffer_size, batch_size, balanced_idx_path=None,
-                          max_transitions=None, seed=0, num_workers=8):
-    valid_t_override = None
-    if balanced_idx_path and os.path.exists(balanced_idx_path):
-        valid_t_override = np.load(balanced_idx_path)
-
-    wrappers, obs_shape, act_shape, h5_file = load_pointmaze_dataset(
-        dataset_path,
-        obs_buffer_size=obs_buffer_size,
-        max_transitions=max_transitions,
-        valid_t_override=valid_t_override,
-    )
-    ds = PointMazeDataset(wrappers)
-
-    # vanilla DataLoader: shuffle batches, pin for async H2D, multiple workers
-    loader = DataLoader(
-        ds,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    # we also return obs_shape/act_shape so you can init models just like before
-    return loader, obs_shape, act_shape, h5_file
+    return wrappers, stacked_obs_shape, act_shape
 
 
 def create_models(cfg: DictConfig, obs_shape, act_shape):
@@ -239,18 +208,20 @@ def log_to_wandb(cfg, evaluators, logs, batch, train_step):
             for key, value in algo_log.items()
         }
         wandb.log(labeled_logs, step=train_step)
+
     if train_step % cfg.img_log_freq == 0:
-        if cfg.env == "nav2d":
-            for model_name, evaluator in evaluators.items():
+        for model_name, evaluator in evaluators.items():
+            if cfg.env == "nav2d":
                 imgs = evaluator.eval_imgs(batch)
-                wandb_imgs_log = {
-                    f"{model_name}/{key}": img
-                    for key, img in imgs.items()
-                }
-                wandb.log(wandb_imgs_log, step=train_step)
-        elif cfg.env == "pointmaze":
-            # TODO: include tsne stuff here for evals
-            pass
+            elif cfg.env == "pointmaze":
+                # imgs = evaluator.eval_plan2vec_figure5(batch)
+                pass
+
+            wandb_imgs_log = {
+                f"{model_name}/{key}": img
+                for key, img in imgs.items()
+            }
+            wandb.log(wandb_imgs_log, step=train_step)
 
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
@@ -275,23 +246,32 @@ def main(cfg: DictConfig):
     models, evaluators = None, None
     train_step = 0
     first_dataset = True
-    open_files = []
 
     for dataset_file in cfg.datasets:
         print(f"LOADING {dataset_file} ...")
         balanced_idx_path = getattr(cfg, "balanced_idx_path", None),
         if (balanced_idx_path is not None and len(balanced_idx_path) <= 1):
             balanced_idx_path = None
-        loader, obs_shape, act_shape, h5_file = make_loader(
-            dataset_path=dataset_file,
-            obs_buffer_size=getattr(cfg, "obs_buffer_size", 1),   # K (set to 1 if you don't want stacking)
-            batch_size=cfg.batch_size,
-            balanced_idx_path=balanced_idx_path,
+
+        valid_t_override = None
+        if balanced_idx_path and os.path.exists(balanced_idx_path):
+            valid_t_override = np.load(balanced_idx_path)
+
+        wrappers, obs_shape, act_shape = load_pointmaze_dataset(
+            dataset_file,
+            obs_buffer_size=getattr(cfg, "obs_buffer_size", 1),   # K (set to 1 if you don't want stacking)            max_transitions=max_transitions,
             max_transitions=getattr(cfg, "max_transitions", None),
-            seed=cfg.seed,
-            num_workers=8,
+            valid_t_override=valid_t_override,
         )
-        open_files.append(h5_file)
+        dataset = PointMazeDataset(wrappers)
+        loader = DataLoader(
+            dataset,
+            batch_size=cfg.batch_size,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True,
+        )
+
 
         if first_dataset:
             models, evaluators = create_models(cfg, obs_shape, act_shape)
@@ -300,12 +280,15 @@ def main(cfg: DictConfig):
             first_dataset = False
 
         train_step, save_paths, log_name = train(
-            cfg, loader, models, evaluators, train_step, wandb_name, cur_date_time
+            cfg,
+            loader,
+            models,
+            evaluators,
+            train_step,
+            wandb_name,
+            cur_date_time
         )
-
-    for f in open_files:
-        try: f.close()
-        except: pass
+        dataset = None
 
     if (len(cfg.eval_encoder) > 0) and (cfg.eval_encoder in save_paths):
         wandb.finish()
@@ -353,38 +336,44 @@ def main(cfg: DictConfig):
                 )
 
 
-def train(cfg, loader, models, evaluators, train_step, wandb_name, cur_date_time):
+def train(
+    cfg,
+    loader,
+    models,
+    evaluators,
+    train_step,
+    wandb_name,
+    cur_date_time,
+):
     wandb_logs = {key: {} for key in models.keys()}
 
     for epoch in range(cfg.n_epochs):
         for batch in tqdm.tqdm(loader, desc=f"Epoch #{epoch}"):
-            # old dataset yields tuple
             if cfg.env == 'pointmaze':
                 obs, obs_next, action, physics = batch
             else:
                 obs, obs_next, action = batch
 
             # GPU (non_blocking since pin_memory=True)
-            obs      = obs.cuda(non_blocking=True)
+            obs = obs.cuda(non_blocking=True)
             obs_next = obs_next.cuda(non_blocking=True)
-            action   = action.cuda(non_blocking=True).long()
+            action = action.cuda(non_blocking=True).long()
 
-            obs      = obs.permute(0, 3, 1, 2).contiguous()
+            # TODO: FLAGGED
+            obs = obs.permute(0, 3, 1, 2).contiguous()
             obs_next = obs_next.permute(0, 3, 1, 2).contiguous()
 
             # keep normalization in main (works with current SingleStep)
             if cfg.env == "pointmaze":
                 obs      = obs.float().mul_(1/127.5).add_(-1.0)
                 obs_next = obs_next.float().mul_(1/127.5).add_(-1.0)
-
-            samples = {"obs": obs, "obs_next": obs_next, "action": action}
-            if cfg.env == 'pointmaze':
-                samples["physics"] = physics  # stays on CPU; only for evaluators
+                samples = {"obs": obs, "obs_next": obs_next, "action": action, "physics": physics}
+            else:
+                samples = {"obs": obs, "obs_next": obs_next, "action": action}
 
             for name, model in models.items():
                 logs = model.train_step(samples, epoch, train_step)
-                if isinstance(logs, dict):
-                    wandb_logs[name].update(logs)
+                wandb_logs[name].update(logs)
 
             if cfg.train_evaluators:
                 for model_name, evaluator in evaluators.items():
@@ -392,12 +381,7 @@ def train(cfg, loader, models, evaluators, train_step, wandb_name, cur_date_time
                     wandb_logs[model_name].update(log)
 
             if cfg.wandb:
-                labeled_logs = {
-                    f"{algo_name}/{key}": value
-                    for algo_name, algo_log in wandb_logs.items()
-                    for key, value in algo_log.items()
-                }
-                wandb.log(labeled_logs, step=train_step)
+                log_to_wandb(cfg, evaluators, wandb_logs, samples, train_step)
 
             train_step += 1
 
