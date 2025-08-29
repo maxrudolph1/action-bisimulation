@@ -44,3 +44,8 @@ python main.py algos='[single_step]' name='CONTINUOUS_pointmaze_ss_forwardWeight
         n_epochs=9 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
         algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
         algos.single_step.forward_weight=0.3 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
+
+# python main.py algos='[single_step]' name='CONTINUOUS_pointmaze_ss_forwardWeight_1' wandb=True \
+#         n_epochs=20 algos.single_step.l2_penalty=0.0001 algos.single_step.use_l2_norm=True \
+#         algos.single_step.dynamic_l1_penalty=False train_evaluators=False eval_encoder='' env='pointmaze' \
+#         algos.single_step.forward_weight=0.1 algos.single_step.use_l2_norm=True algos.single_step.l2_penalty=0.0 \
