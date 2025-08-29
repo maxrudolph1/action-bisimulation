@@ -260,10 +260,6 @@ def main(cfg: DictConfig):
     wandb_name = None
     if cfg.wandb:
         name = f"{cfg.name}_{cur_date_time}"
-        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_{cur_date_time}"
-        # name = f"{cfg.name}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
-        # name = f"acro_sweeps_k{cfg.algos.acro.k_steps}_l1_{cfg.algos.acro.l1_penalty}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
-        # name = f"{cfg.name}_gamma_{cfg.algos.multi_step.gamma}_grd_15_obstcls_20_smpls_1250000_{cur_date_time}"
         wandb.init(
             entity=cfg.wandb_entity,
             project="nav2d",
@@ -283,11 +279,14 @@ def main(cfg: DictConfig):
 
     for dataset_file in cfg.datasets:
         print(f"LOADING {dataset_file} ...")
+        balanced_idx_path = getattr(cfg, "balanced_idx_path", None),
+        if (balanced_idx_path is not None and len(balanced_idx_path) <= 1):
+            balanced_idx_path = None
         loader, obs_shape, act_shape, h5_file = make_loader(
             dataset_path=dataset_file,
             obs_buffer_size=getattr(cfg, "obs_buffer_size", 1),   # K (set to 1 if you don't want stacking)
             batch_size=cfg.batch_size,
-            balanced_idx_path=getattr(cfg, "balanced_idx_path", None),
+            balanced_idx_path=balanced_idx_path,
             max_transitions=getattr(cfg, "max_transitions", None),
             seed=cfg.seed,
             num_workers=8,
