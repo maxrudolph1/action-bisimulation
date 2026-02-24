@@ -38,5 +38,5 @@
 
 
 python main.py algos='[single_step]' env='pointmaze' n_epochs=8 max_transitions_mode='head' \
-	wandb=True algos.single_step.l1_penalty=0.0001 \
+	wandb=False algos.single_step.l1_penalty=0.0001 \
 	algos.single_step.encoder.normalization=l2 name='pointmaze_displacement_ss_test' \

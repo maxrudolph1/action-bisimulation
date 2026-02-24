@@ -76,21 +76,6 @@ class H5SliceWrapper:
         return self.ds[self.valid[idx]]
 
 
-def _valid_t_from_eps(ep_len: np.ndarray, K: int) -> np.ndarray:
-    """t where K frames ending at t exist, and t+1 exists. Per-episode."""
-    starts = np.empty_like(ep_len, dtype=np.int64)
-    starts[0] = 0
-    if len(ep_len) > 1:
-        starts[1:] = np.cumsum(ep_len[:-1])
-
-    out = []
-    for s, L in zip(starts, ep_len):
-        if L >= K + 1:
-            # t in [s + (K-1) .. s + (L-2)]
-            out.append(np.arange(s + (K-1), s + (L-1), dtype=np.int64))
-    return np.concatenate(out, axis=0) if out else np.zeros((0,), dtype=np.int64)
-
-
 def _filter_valid_t_for_K(valid_t: np.ndarray, starts: np.ndarray, lens: np.ndarray, K: int, T: int) -> np.ndarray:
     """Ensure valid_t respects both t+1 in-bounds and K-stack within episode."""
     # Build a map from time->episode (fast + one pass)
@@ -138,7 +123,20 @@ def load_pointmaze_dataset(
     K = int(obs_buffer_size)
     if valid_t_override is None:
         # TODO: CHECK THIS
-        valid_t = _valid_t_from_eps(ep_len, K)
+        starts = np.empty_like(ep_len, dtype=np.int64)
+        starts[0] = 0
+        if len(ep_len) > 1:
+            starts[1:] = np.cumsum(ep_len[:-1])
+
+        out = []
+        for start, length in zip(starts, ep_len):
+            for t_in_ep in range(obs_buffer_size - 1, length - 1):
+                out.append(start + t_in_ep)
+            # TODO: FLAGGED
+            # if length >= K + 1:
+            #     out.append(np.arange(start + (K-1), start + (length-1), dtype=np.int64))
+        # valid_t = np.concatenate(out, axis=0)
+        valid_t = np.array(out, dtype=np.int64)
     else:
         # TODO: CHECK THIS
         # ensure the provided valid_t still respects K stacking and t+1 in-bounds
